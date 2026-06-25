@@ -1,2 +1,4 @@
 This file triggers GitHub Pages deployment.
 Please enable Pages in Settings > Pages > Source: main branch
+
+Your site will be available at: https://linyihui1557-bot.github.io/srt-workbench/
