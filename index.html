@@ -1,1 +1,2255 @@
-test
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRT 字幕工作台</title>
+<style>
+:root {
+  --bg-primary: #12100e;
+  --bg-secondary: #1a1714;
+  --bg-tertiary: #23201c;
+  --bg-hover: #2e2a24;
+  --bg-active: #3a352e;
+  --text-primary: #eae5de;
+  --text-secondary: #b5afa6;
+  --text-muted: #8a847b;
+  --accent: #c4a265;
+  --accent-hover: #d4b87a;
+  --accent-dark: #9a7d48;
+  --border: #3d3830;
+  --border-light: #524d44;
+  --danger: #b86b6b;
+  --danger-hover: #c97070;
+  --success: #7eb893;
+  --warning: #d4a574;
+  --playhead: #c4a265;
+  --waveform-color: #7eb893;
+  --block-bg: rgba(196, 162, 101, 0.55);
+  --block-selected: rgba(196, 162, 101, 0.9);
+  --editor-bg: #1c1a17;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  --font-serif: "Noto Serif SC", "Songti SC", "Georgia", "STSong", serif;
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* Toolbar */
+.toolbar { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  padding: 8px 16px; 
+  background: var(--bg-secondary); 
+  border-bottom: 1px solid var(--border); 
+  flex-shrink: 0; 
+  flex-wrap: wrap; 
+}
+.toolbar button { 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 6px 14px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-size: 13px; 
+  transition: all 0.2s ease; 
+  white-space: nowrap; 
+  font-family: var(--font-sans);
+  letter-spacing: 0.3px;
+}
+.toolbar button:hover { 
+  background: var(--bg-hover); 
+  border-color: var(--accent-dark); 
+  color: var(--accent-hover);
+}
+.toolbar button:active { 
+  background: var(--bg-active); 
+  transform: translateY(1px);
+}
+.toolbar .sep { 
+  width: 1px; 
+  height: 22px; 
+  background: var(--border-light); 
+  margin: 0 6px; 
+}
+.toolbar input[type="number"] { 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 5px 10px; 
+  border-radius: 6px; 
+  width: 56px; 
+  font-size: 13px; 
+  font-family: var(--font-mono);
+}
+
+/* Main */
+.main { 
+  display: flex; 
+  flex: 1; 
+  overflow: hidden; 
+  gap: 1px;
+  background: var(--border);
+}
+
+/* Left: subtitle list */
+.left-panel { 
+  width: 240px; 
+  min-width: 180px; 
+  background: var(--bg-secondary); 
+  display: flex; 
+  flex-direction: column; 
+  resize: horizontal; 
+  overflow: auto; 
+}
+.subtitle-list { 
+  flex: 1; 
+  overflow-y: auto; 
+  padding: 8px;
+}
+.subtitle-item { 
+  padding: 10px 12px; 
+  border-radius: 8px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  cursor: pointer; 
+  font-size: 13px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 4px; 
+  transition: all 0.15s ease;
+  background: var(--bg-tertiary);
+}
+.subtitle-item:hover { 
+  background: var(--bg-hover); 
+  border-color: var(--border-light);
+}
+.subtitle-item.selected { 
+  background: rgba(196, 162, 101, 0.12); 
+  border-color: var(--accent-dark);
+  box-shadow: var(--card-shadow);
+}
+.subtitle-item .num { 
+  font-family: var(--font-mono); 
+  color: var(--text-muted); 
+  font-size: 10px; 
+  letter-spacing: 0.5px;
+}
+.subtitle-item .time { 
+  font-family: var(--font-mono); 
+  color: var(--accent); 
+  font-size: 10px; 
+  letter-spacing: 0.3px;
+}
+.subtitle-item .text { 
+  color: var(--text-primary); 
+  line-height: 1.6; 
+  word-break: break-word; 
+  overflow: hidden; 
+  display: -webkit-box; 
+  -webkit-line-clamp: 2; 
+  -webkit-box-orient: vertical;
+  font-size: 13px;
+}
+
+/* Center: editor */
+.center-panel { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  background: var(--bg-primary); 
+  overflow: hidden; 
+  position: relative;
+}
+.editor-workspace { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  padding: 20px 28px; 
+  overflow-y: auto;
+}
+.editor-header { 
+  font-family: var(--font-serif); 
+  font-size: 20px; 
+  color: var(--text-primary); 
+  margin-bottom: 16px; 
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.editor-header .seq-num { 
+  font-family: var(--font-mono); 
+  font-size: 12px; 
+  color: var(--accent); 
+  background: rgba(196,162,101,0.12); 
+  padding: 2px 8px; 
+  border-radius: 4px;
+}
+.editor-time-row { 
+  display: flex; 
+  gap: 16px; 
+  margin-bottom: 16px; 
+}
+.editor-time-field { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 6px;
+}
+.editor-time-field label { 
+  font-size: 11px; 
+  color: var(--text-muted); 
+  text-transform: uppercase; 
+  letter-spacing: 1px;
+  font-family: var(--font-sans);
+}
+.editor-time-field input { 
+  background: var(--bg-secondary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 10px 14px; 
+  border-radius: 8px; 
+  font-size: 14px; 
+  font-family: var(--font-mono);
+  transition: border-color 0.2s;
+}
+.editor-time-field input:focus { 
+  outline: none; 
+  border-color: var(--accent); 
+  box-shadow: 0 0 0 3px rgba(196,162,101,0.12);
+}
+.editor-textarea { 
+  flex: 1; 
+  background: var(--editor-bg); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 16px 18px; 
+  border-radius: 10px; 
+  font-size: 16px; 
+  line-height: 1.8; 
+  font-family: var(--font-sans); 
+  resize: none; 
+  transition: border-color 0.2s;
+  min-height: 120px;
+}
+.editor-textarea:focus { 
+  outline: none; 
+  border-color: var(--accent); 
+  box-shadow: 0 0 0 3px rgba(196,162,101,0.1);
+}
+.editor-empty-state { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  flex: 1; 
+  color: var(--text-muted); 
+  font-size: 15px; 
+  font-family: var(--font-serif); 
+  letter-spacing: 1px;
+}
+.editor-actions { 
+  display: flex; 
+  gap: 10px; 
+  margin-top: 16px; 
+  justify-content: flex-end;
+}
+.editor-actions button { 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 8px 18px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-size: 13px; 
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+}
+.editor-actions button:hover { 
+  background: var(--bg-hover); 
+  border-color: var(--border-light);
+}
+.editor-actions button.primary { 
+  background: var(--accent); 
+  border-color: var(--accent-dark); 
+  color: #1a1714; 
+  font-weight: 600;
+}
+.editor-actions button.primary:hover { 
+  background: var(--accent-hover);
+}
+.editor-actions button.danger { 
+  border-color: var(--danger); 
+  color: var(--danger);
+}
+.editor-actions button.danger:hover { 
+  background: var(--danger); 
+  color: #fff;
+}
+
+/* Right: timeline */
+.right-panel { 
+  width: 300px; 
+  min-width: 240px; 
+  display: flex; 
+  flex-direction: column; 
+  background: var(--bg-secondary); 
+  overflow: hidden; 
+  border-left: 1px solid var(--border);
+}
+.timeline-section { 
+  height: 200px; 
+  position: relative; 
+  overflow: hidden; 
+  background: var(--bg-primary); 
+  border-bottom: 1px solid var(--border);
+}
+.timeline-section.empty { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  color: var(--text-muted); 
+  font-size: 13px; 
+  font-family: var(--font-serif);
+  letter-spacing: 0.5px;
+}
+.timeline-controls { 
+  display: flex; 
+  gap: 8px; 
+  padding: 10px 12px; 
+  background: var(--bg-tertiary); 
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.timeline-controls button { 
+  background: var(--bg-secondary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 5px 12px; 
+  border-radius: 5px; 
+  cursor: pointer; 
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.timeline-controls button:hover { 
+  background: var(--bg-hover); 
+  border-color: var(--accent-dark);
+  color: var(--accent);
+}
+.timeline-info { 
+  flex: 1; 
+  padding: 12px; 
+  overflow-y: auto; 
+}
+.timeline-info-item { 
+  padding: 8px 0; 
+  border-bottom: 1px solid var(--border); 
+  font-size: 12px; 
+  color: var(--text-secondary);
+}
+.timeline-info-item:last-child { border-bottom: none; }
+.timeline-info-item .label { 
+  color: var(--text-muted); 
+  font-size: 10px; 
+  text-transform: uppercase; 
+  letter-spacing: 0.8px; 
+  margin-bottom: 2px;
+}
+
+/* Bottom Panel */
+.bottom-panel { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  padding: 8px 16px; 
+  background: var(--bg-secondary); 
+  border-top: 1px solid var(--border); 
+  flex-shrink: 0; 
+  flex-wrap: wrap; 
+}
+.bottom-panel button { 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 6px 14px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-size: 13px; 
+  transition: all 0.15s; 
+  font-family: var(--font-sans);
+}
+.bottom-panel button:hover { 
+  background: var(--bg-hover); 
+  border-color: var(--accent-dark);
+  color: var(--accent);
+}
+.bottom-panel button.primary { 
+  background: var(--accent); 
+  border-color: var(--accent-dark); 
+  color: #1a1714; 
+  font-weight: 600;
+}
+.bottom-panel button.primary:hover { 
+  background: var(--accent-hover);
+}
+.bottom-panel label { 
+  font-size: 12px; 
+  color: var(--text-secondary); 
+  margin-right: 4px; 
+}
+
+/* Status Bar */
+.statusbar { 
+  display: flex; 
+  justify-content: space-between; 
+  padding: 6px 16px; 
+  background: var(--bg-primary); 
+  border-top: 1px solid var(--border); 
+  font-size: 11px; 
+  color: var(--text-muted); 
+  flex-shrink: 0; 
+  font-family: var(--font-mono);
+  letter-spacing: 0.3px;
+}
+
+/* Modals */
+.modal-overlay { 
+  position: fixed; 
+  top: 0; left: 0; right: 0; bottom: 0; 
+  background: rgba(18, 16, 14, 0.85); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  z-index: 1000; 
+  opacity: 0; 
+  pointer-events: none; 
+  transition: opacity 0.25s ease; 
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+.modal { 
+  background: var(--bg-secondary); 
+  border: 1px solid var(--border); 
+  border-radius: 12px; 
+  min-width: 420px; 
+  max-width: 90vw; 
+  max-height: 90vh; 
+  display: flex; 
+  flex-direction: column; 
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.modal.wide { min-width: 680px; }
+.modal-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 14px 20px; 
+  border-bottom: 1px solid var(--border); 
+}
+.modal-header span { 
+  font-size: 16px; 
+  font-weight: 600; 
+  font-family: var(--font-serif);
+  letter-spacing: 0.5px;
+}
+.modal-close { 
+  background: none; 
+  border: none; 
+  color: var(--text-muted); 
+  font-size: 22px; 
+  cursor: pointer; 
+  transition: color 0.15s;
+}
+.modal-close:hover { color: var(--danger); }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-footer { 
+  display: flex; 
+  gap: 10px; 
+  padding: 14px 20px; 
+  border-top: 1px solid var(--border); 
+  justify-content: flex-end; 
+}
+.modal-footer button { 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 7px 16px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-size: 13px; 
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+}
+.modal-footer button.primary { 
+  background: var(--accent); 
+  border-color: var(--accent-dark); 
+  color: #1a1714; 
+  font-weight: 600;
+}
+.modal-footer button.primary:hover { background: var(--accent-hover); }
+.modal-footer button.danger { border-color: var(--danger); color: var(--danger); }
+.modal-footer button.danger:hover { background: var(--danger); color: #fff; }
+
+/* Form */
+.form-row { display: flex; gap: 14px; margin-bottom: 14px; }
+.form-group { flex: 1; }
+.form-group label { 
+  display: block; 
+  font-size: 11px; 
+  color: var(--text-muted); 
+  margin-bottom: 5px; 
+  text-transform: uppercase; 
+  letter-spacing: 0.8px;
+}
+.form-group input, .form-group textarea { 
+  width: 100%; 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 8px 12px; 
+  border-radius: 8px; 
+  font-size: 14px; 
+  font-family: inherit; 
+  transition: border-color 0.2s;
+}
+.form-group input:focus, .form-group textarea:focus { 
+  outline: none; 
+  border-color: var(--accent); 
+  box-shadow: 0 0 0 3px rgba(196,162,101,0.1);
+}
+
+/* Verify Items */
+.verify-item { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+  padding: 12px 14px; 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+  margin-bottom: 10px; 
+  background: var(--bg-tertiary); 
+  transition: border-color 0.15s;
+}
+.verify-item:hover { border-color: var(--border-light); }
+.verify-item .term-line { display: flex; justify-content: space-between; align-items: center; }
+.verify-item .term { 
+  color: var(--warning); 
+  font-weight: 600; 
+  font-family: var(--font-mono); 
+  font-size: 13px;
+}
+.verify-item .context { 
+  color: var(--text-secondary); 
+  font-size: 13px; 
+  line-height: 1.6; 
+  max-height: 48px; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  font-style: italic;
+}
+.verify-item .links { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.verify-item .links a { 
+  color: var(--accent); 
+  font-size: 12px; 
+  text-decoration: none; 
+  transition: color 0.15s;
+}
+.verify-item .links a:hover { text-decoration: underline; color: var(--accent-hover); }
+.verify-item .links button { 
+  background: var(--bg-hover); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 4px 12px; 
+  border-radius: 5px; 
+  cursor: pointer; 
+  font-size: 12px; 
+  transition: all 0.15s;
+}
+.verify-item .links button:hover { 
+  background: var(--accent); 
+  border-color: var(--accent); 
+  color: #1a1714; 
+}
+.verify-item .links button.ignore-btn { color: var(--text-muted); }
+.verify-item .links button.ignore-btn:hover { 
+  background: var(--text-muted); 
+  border-color: var(--text-muted); 
+  color: #fff; 
+}
+.verify-count { font-size: 14px; color: var(--text-secondary); margin-bottom: 14px; font-family: var(--font-serif); }
+.verify-empty { text-align: center; color: var(--text-secondary); padding: 32px; font-style: italic; }
+
+/* Add Rule Form */
+.add-custom-rule-form { 
+  background: var(--bg-primary); 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+  padding: 14px; 
+  margin-bottom: 16px; 
+}
+.add-custom-rule-form h4 { 
+  font-size: 13px; 
+  color: var(--text-secondary); 
+  margin-bottom: 10px; 
+  font-family: var(--font-serif); 
+  letter-spacing: 0.5px;
+}
+.add-custom-rule-form .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.add-custom-rule-form input { 
+  flex: 1; 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  font-size: 13px; 
+  font-family: var(--font-sans);
+  transition: border-color 0.2s;
+}
+.add-custom-rule-form input:focus { 
+  outline: none; 
+  border-color: var(--accent); 
+  box-shadow: 0 0 0 3px rgba(196,162,101,0.1);
+}
+.add-custom-rule-form button { 
+  background: var(--accent); 
+  border: 1px solid var(--accent-dark); 
+  color: #1a1714; 
+  padding: 8px 16px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-size: 13px; 
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.add-custom-rule-form button:hover { background: var(--accent-hover); }
+
+/* Rules Modal */
+.rules-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.rules-tab { 
+  padding: 7px 16px; 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-size: 13px; 
+  color: var(--text-secondary); 
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+}
+.rules-tab.active { 
+  background: var(--accent); 
+  color: #1a1714; 
+  border-color: var(--accent-dark); 
+  font-weight: 600;
+}
+.rules-tab:hover:not(.active) { border-color: var(--border-light); color: var(--text-primary); }
+.rules-count { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+.rules-filter { display: flex; gap: 10px; margin-bottom: 10px; }
+.rules-filter input { 
+  flex: 1; 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  font-size: 13px; 
+  font-family: var(--font-sans);
+  transition: border-color 0.2s;
+}
+.rules-filter input:focus { 
+  outline: none; 
+  border-color: var(--accent); 
+  box-shadow: 0 0 0 3px rgba(196,162,101,0.1);
+}
+.rules-list { max-height: 360px; overflow-y: auto; }
+.rules-list-item { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  padding: 7px 10px; 
+  border-bottom: 1px solid var(--border); 
+  font-size: 12px; 
+  transition: background 0.1s;
+}
+.rules-list-item:hover { background: var(--bg-hover); }
+.rules-list-item input[type="checkbox"] { margin: 0; accent-color: var(--accent); }
+.rules-list-item .pattern { color: var(--text-primary); font-family: var(--font-mono); }
+.rules-list-item .arrow { color: var(--text-muted); }
+.rules-list-item .replacement { color: var(--accent); font-weight: 600; }
+.rules-list-item .delete-btn { 
+  margin-left: auto; 
+  background: none; 
+  border: none; 
+  color: var(--danger); 
+  cursor: pointer; 
+  font-size: 16px; 
+  transition: transform 0.1s;
+}
+.rules-list-item .delete-btn:hover { transform: scale(1.1); }
+.rules-panel { display: none; }
+.rules-panel.active { display: block; }
+.rules-add-custom { 
+  display: flex; 
+  gap: 10px; 
+  margin-top: 10px; 
+  padding-top: 10px; 
+  border-top: 1px solid var(--border); 
+}
+.rules-add-custom input { 
+  flex: 1; 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  font-size: 13px; 
+  font-family: var(--font-sans);
+  transition: border-color 0.2s;
+}
+.rules-add-custom input:focus { 
+  outline: none; 
+  border-color: var(--accent); 
+  box-shadow: 0 0 0 3px rgba(196,162,101,0.1);
+}
+.rules-add-custom button { 
+  background: var(--accent); 
+  border: 1px solid var(--accent-dark); 
+  color: #1a1714; 
+  padding: 7px 16px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-size: 13px; 
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.rules-add-custom button:hover { background: var(--accent-hover); }
+
+/* Ignored Section */
+.ignored-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px; }
+.ignored-toggle { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  cursor: pointer; 
+  font-size: 13px; 
+  color: var(--text-secondary); 
+  transition: color 0.15s;
+}
+.ignored-toggle:hover { color: var(--text-primary); }
+.ignored-list { display: none; margin-top: 10px; }
+.ignored-list.active { display: block; }
+.ignored-item { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 5px 10px; 
+  font-size: 12px; 
+  border-bottom: 1px solid var(--border); 
+  transition: background 0.1s;
+}
+.ignored-item:hover { background: var(--bg-hover); }
+.ignored-item .term { font-family: var(--font-mono); color: var(--text-muted); }
+.ignored-item button { 
+  background: none; 
+  border: none; 
+  color: var(--accent); 
+  cursor: pointer; 
+  font-size: 12px; 
+  transition: color 0.15s;
+}
+.ignored-item button:hover { color: var(--accent-hover); text-decoration: underline; }
+
+/* Context Menu */
+.context-menu { 
+  position: fixed; 
+  background: var(--bg-secondary); 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+  padding: 6px 0; 
+  min-width: 150px; 
+  z-index: 5000; 
+  display: none; 
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35); 
+}
+.context-menu-item { 
+  padding: 9px 16px; 
+  cursor: pointer; 
+  font-size: 13px; 
+  color: var(--text-primary); 
+  transition: background 0.1s;
+}
+.context-menu-item:hover { background: var(--bg-hover); }
+.context-menu-sep { height: 1px; background: var(--border); margin: 5px 0; }
+.context-menu-item.danger { color: var(--danger); }
+
+/* Toast */
+.toast-container { 
+  position: fixed; 
+  bottom: 24px; 
+  right: 24px; 
+  z-index: 6000; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px; 
+}
+.toast { 
+  background: var(--bg-secondary); 
+  border: 1px solid var(--border); 
+  color: var(--text-primary); 
+  padding: 12px 20px; 
+  border-radius: 8px; 
+  font-size: 13px; 
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3); 
+  animation: toastIn 0.3s ease; 
+  font-family: var(--font-sans);
+  border-left: 3px solid var(--accent);
+}
+@keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* Drag Overlay */
+.drag-overlay { 
+  position: fixed; 
+  top: 0; left: 0; right: 0; bottom: 0; 
+  background: rgba(18, 16, 14, 0.85); 
+  border: 3px dashed var(--accent); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  z-index: 9999; 
+  opacity: 0; 
+  pointer-events: none; 
+  transition: opacity 0.2s; 
+  backdrop-filter: blur(4px);
+}
+.drag-overlay.show { opacity: 1; pointer-events: auto; }
+.drag-overlay-text { 
+  font-size: 26px; 
+  color: var(--accent); 
+  font-weight: 600; 
+  background: var(--bg-secondary); 
+  padding: 28px 52px; 
+  border-radius: 14px; 
+  border: 2px solid var(--accent); 
+  font-family: var(--font-serif);
+  letter-spacing: 1px;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <button id="btnImportSRT">📄 导入 SRT</button>
+  <button id="btnExport">💾 导出</button>
+  <div class="sep"></div>
+  <button id="btnAutoSpace">📝 自动空格</button>
+  <button id="btnTermFix">🔧 术语修正</button>
+  <div class="sep"></div>
+  <button id="btnSmartSplit">✂️ 智能拆分</button>
+  <label>最多字符:</label>
+  <input type="number" id="maxChars" value="28" min="8" max="80">
+  <div class="sep"></div>
+  <button id="btnVerify">🔍 术语验证</button>
+  <button id="btnRules">⚙️ 规则管理</button>
+  <div class="sep"></div>
+  <button id="btnUndo">↩️ 撤销</button>
+  <button id="btnRedo">↪️ 重做</button>
+  <div class="sep"></div>
+  <button id="btnImportAudio">🎵 导入音频</button>
+  <button id="btnPlay">▶ 播放</button>
+  <button id="btnStop">⏹ 停止</button>
+</div>
+
+<input type="file" id="fileInput" accept=".srt">
+<input type="file" id="audioInput" accept="audio/*">
+
+<!-- Main: 3-column layout -->
+<div class="main">
+  <div class="left-panel" id="leftPanel">
+    <div class="subtitle-list" id="subtitleList"></div>
+  </div>
+
+  <div class="center-panel" id="centerPanel">
+    <div class="editor-workspace" id="editorWorkspace">
+      <div class="editor-empty-state" id="editorEmptyState">选择一个字幕条目开始编辑</div>
+      <div class="editor-content" id="editorContent" style="display:none">
+        <div class="editor-header">
+          <span class="seq-num" id="editorSeqNum">#1</span>
+          <span>编辑字幕</span>
+        </div>
+        <div class="editor-time-row">
+          <div class="editor-time-field">
+            <label>开始时间</label>
+            <input type="text" id="editorStartTime" placeholder="00:00:00,000">
+          </div>
+          <div class="editor-time-field">
+            <label>结束时间</label>
+            <input type="text" id="editorEndTime" placeholder="00:00:00,000">
+          </div>
+        </div>
+        <textarea class="editor-textarea" id="editorText" placeholder="在此输入字幕文本..."></textarea>
+        <div class="editor-actions">
+          <button id="btnEditorVerify">🔍 验证术语</button>
+          <button id="btnEditorSplit">✂️ 拆分</button>
+          <button id="btnEditorDelete" class="danger">删除</button>
+          <button id="btnEditorSave" class="primary">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel" id="rightPanel">
+    <div class="timeline-section empty" id="timelineSection">
+      <canvas id="waveformCanvas"></canvas>
+    </div>
+    <div class="timeline-controls">
+      <button id="btnTimelinePlay">▶</button>
+      <button id="btnTimelineStop">⏹</button>
+      <span style="color:var(--text-muted);font-size:11px;margin-left:auto;font-family:var(--font-mono)" id="timelineCurrent">00:00:00</span>
+    </div>
+    <div class="timeline-info" id="timelineInfo"></div>
+  </div>
+</div>
+
+<div class="bottom-panel">
+  <button id="btnScanBottom">🔎 术语扫描与预处理</button>
+  <div class="sep"></div>
+  <button id="btnRulesBottom">⚙️ 管理规则</button>
+  <button id="btnTermFixBottom">术语修正</button>
+  <button id="btnAutoSpaceBottom">自动空格</button>
+  <div class="sep"></div>
+  <label>最多字符:</label>
+  <input type="number" id="maxCharsBottom" value="28" min="8" max="80">
+  <button id="btnExecSplit" class="primary">执行拆分</button>
+</div>
+
+<div class="statusbar">
+  <span id="statusText">0 条字幕</span>
+  <span id="shortcutHint">Ctrl+O 打开 | Ctrl+S 保存 | 空格 播放/暂停 | Del 删除</span>
+</div>
+
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal" id="editModal">
+    <div class="modal-header">
+      <span>编辑字幕</span>
+      <button class="modal-close" id="editModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>开始时间</label>
+          <input type="text" id="editStartTime" placeholder="00:00:00,000">
+        </div>
+        <div class="form-group">
+          <label>结束时间</label>
+          <input type="text" id="editEndTime" placeholder="00:00:00,000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>字幕文本</label>
+        <textarea id="editText" rows="4"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btnVerifySelected">验证选中</button>
+      <button id="btnDeleteEdit" class="danger">删除</button>
+      <button id="btnSplitEdit">拆分</button>
+      <button id="btnSaveEdit" class="primary">保存</button>
+      <button id="btnCancelEdit">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="verifyModalOverlay">
+  <div class="modal wide" id="verifyModal">
+    <div class="modal-header">
+      <span>🔍 术语验证</span>
+      <button class="modal-close" id="verifyModalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="verifyModalBody">
+      <div class="add-custom-rule-form" id="addCustomRuleForm" style="display:block;margin-bottom:12px;">
+        <h4>➕ 添加规则</h4>
+        <div class="form-row">
+          <input type="text" id="customRulePattern" placeholder="匹配规则 (例如: apple)">
+          <input type="text" id="customRuleReplacement" placeholder="替换内容 (例如: Apple)">
+        </div>
+        <button id="btnSaveCustomRule">保存规则</button>
+      </div>
+      <div class="verify-count" id="verifyCount">发现 0 个潜在问题</div>
+      <div id="verifyResults"></div>
+      <div class="verify-empty" id="verifyEmpty" style="display:none">
+        未发现潜在问题，做得好！
+      </div>
+      <div class="ignored-section" id="ignoredSection">
+        <div class="ignored-toggle" id="ignoredToggle">
+          <span id="ignoredCount">已忽略 0 个术语</span>
+          <span>▼ 查看</span>
+        </div>
+        <div class="ignored-list" id="ignoredList"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btnScanAll">扫描所有字幕</button>
+      <button id="btnVerifyClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rulesModalOverlay">
+  <div class="modal wide" id="rulesModal">
+    <div class="modal-header">
+      <span>⚙️ 术语规则管理</span>
+      <button class="modal-close" id="rulesModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="rules-tabs">
+        <div class="rules-tab active" data-tab="builtin">内置规则</div>
+        <div class="rules-tab" data-tab="custom">自定义规则</div>
+      </div>
+      <div class="rules-count" id="rulesCount">0 条规则</div>
+      <div class="rules-filter">
+        <input type="text" id="rulesFilter" placeholder="搜索规则...">
+      </div>
+      <div class="rules-panel active" id="builtinPanel">
+        <div class="rules-list" id="builtinRulesList"></div>
+      </div>
+      <div class="rules-panel" id="customPanel">
+        <div class="rules-list" id="customRulesList"></div>
+        <div class="rules-add-custom">
+          <input type="text" id="newCustomPattern" placeholder="匹配规则">
+          <input type="text" id="newCustomReplacement" placeholder="替换内容">
+          <button id="btnAddCustomRule">添加</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btnExportRules">📥 导出规则</button>
+      <label class="btn" style="cursor:pointer">
+        📤 导入规则
+        <input type="file" id="importRulesInput" accept=".json" style="display:none">
+      </label>
+      <button id="btnResetRules">重置</button>
+      <button id="btnRulesClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="context-menu" id="contextMenu">
+  <div class="context-menu-item" id="ctxEdit">✏️ 编辑</div>
+  <div class="context-menu-item" id="ctxVerify">🔍 验证术语</div>
+  <div class="context-menu-item" id="ctxSplit">✂️ 拆分</div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item danger" id="ctxDelete">🗑️ 删除</div>
+</div>
+
+<div class="drag-overlay" id="dragOverlay">
+  <div class="drag-overlay-text">📂 拖放 JSON 规则文件到此处</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ==================== STATE ====================
+let subtitles = [];
+let audioBuffer = null, duration = 0, audioCtx = null, audioSource = null;
+let selectedIndex = -1;
+let customRules = [];
+let disabledBuiltinIndices = new Set();
+let ignoredTerms = new Set();
+let history = [], historyIndex = -1;
+let currentVerifyItem = null;
+let isPlaying = false, playStartTime = 0, playOffset = 0;
+let zoom = 1, panOffset = 0;
+let waveformData = null;
+
+// ==================== DOM REFS ====================
+const $ = id => document.getElementById(id);
+const subtitleList = $('subtitleList');
+const timelineContainer = $('timelineSection');
+const waveformCanvas = $('waveformCanvas');
+const ctx2d = waveformCanvas.getContext('2d');
+const statusText = $('statusText');
+const toastContainer = $('toastContainer');
+const editorEmptyState = $('editorEmptyState');
+const editorContent = $('editorContent');
+const editorSeqNum = $('editorSeqNum');
+const editorStartTime = $('editorStartTime');
+const editorEndTime = $('editorEndTime');
+const editorText = $('editorText');
+const timelineInfo = $('timelineInfo');
+const timelineCurrent = $('timelineCurrent');
+
+// ==================== UTILS ====================
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  toastContainer.appendChild(t);
+  setTimeout(() => { t.remove(); }, 2500);
+}
+
+function timeToMs(t) {
+  const m = t.match(/(\d+):(\d+):(\d+)[,.](\d{3})/);
+  if (!m) return 0;
+  return (+m[1])*3600000 + (+m[2])*60000 + (+m[3])*1000 + (+m[4]);
+}
+
+function msToTime(ms) {
+  const h = Math.floor(ms/3600000);
+  const m = Math.floor((ms%3600000)/60000);
+  const s = Math.floor((ms%60000)/1000);
+  const cs = Math.floor(ms%1000);
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+','+String(cs).padStart(3,'0');
+}
+
+function saveHistory() {
+  if (historyIndex < history.length-1) history = history.slice(0, historyIndex+1);
+  history.push(JSON.stringify(subtitles));
+  if (history.length > 50) history.shift();
+  else historyIndex++;
+}
+
+function undo() {
+  if (historyIndex > 0) {
+    historyIndex--;
+    subtitles = JSON.parse(history[historyIndex]);
+    renderSubtitles();
+    renderTimeline();
+    toast('已撤销');
+  }
+}
+
+function redo() {
+  if (historyIndex < history.length-1) {
+    historyIndex++;
+    subtitles = JSON.parse(history[historyIndex]);
+    renderSubtitles();
+    renderTimeline();
+    toast('已重做');
+  }
+}
+
+// ==================== SRT PARSE / EXPORT ====================
+function parseSRT(text) {
+  const subs = [];
+  const blocks = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n\n');
+  let idx = 1;
+  for (const block of blocks) {
+    const lines = block.trim().split('\n');
+    if (lines.length < 2) continue;
+    const timeLine = lines.find(l => l.includes('-->'));
+    if (!timeLine) continue;
+    const [s,e] = timeLine.split('-->').map(t => t.trim());
+    const textLines = lines.slice(lines.indexOf(timeLine)+1);
+    subs.push({index: idx++, start: timeToMs(s), end: timeToMs(e), text: textLines.join('\n')});
+  }
+  return subs;
+}
+
+function exportSRT() {
+  return subtitles.map((sub,i) => {
+    return (i+1) + '\n' + msToTime(sub.start) + ' --> ' + msToTime(sub.end) + '\n' + sub.text + '\n';
+  }).join('\n');
+}
+
+// ==================== RENDER ====================
+function renderSubtitles() {
+  subtitleList.innerHTML = '';
+  if (!subtitles.length) {
+    statusText.textContent = '0 条字幕';
+    return;
+  }
+  for (let i = 0; i < subtitles.length; i++) {
+    const sub = subtitles[i];
+    const el = document.createElement('div');
+    el.className = 'subtitle-item' + (i===selectedIndex?' selected':'');
+    el.innerHTML = '<span class="num">#'+sub.index+'</span><span class="time">'+msToTime(sub.start)+' --> '+msToTime(sub.end)+'</span><span class="text">'+escapeHtml(sub.text)+'</span>';
+    el.addEventListener('click', () => { selectSubtitle(i); });
+    el.addEventListener('dblclick', () => { openEditModal(i); });
+    el.addEventListener('contextmenu', e => { e.preventDefault(); showContextMenu(e, i); });
+    subtitleList.appendChild(el);
+  }
+  statusText.textContent = subtitles.length + ' 条字幕';
+}
+
+function escapeHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+function selectSubtitle(i) {
+  selectedIndex = i;
+  const items = subtitleList.querySelectorAll('.subtitle-item');
+  items.forEach((el, idx) => el.classList.toggle('selected', idx===i));
+  if (i>=0 && i<subtitles.length) {
+    items[i]?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  renderCenterEditor();
+  renderTimeline();
+  renderTimelineInfo();
+}
+
+function renderTimeline() {
+  var dpr = window.devicePixelRatio || 1;
+  var W = timelineContainer.clientWidth;
+  var H = timelineContainer.clientHeight;
+  
+  if (waveformCanvas.width !== W * dpr || waveformCanvas.height !== H * dpr) {
+    waveformCanvas.width = W * dpr;
+    waveformCanvas.height = H * dpr;
+  }
+  ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx2d.clearRect(0, 0, W, H);
+  
+  if (!subtitles.length && !duration) {
+    ctx2d.fillStyle = 'var(--text-muted)';
+    ctx2d.font = '14px var(--font-serif)';
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText('拖放音频文件或点击导入', W/2, H/2);
+    return;
+  }
+  
+  var maxEnd = Math.max.apply(null, subtitles.map(function(s){ return s.end; }).concat(duration*1000||0));
+  if (!maxEnd) return;
+  
+  ctx2d.fillStyle = 'var(--bg-primary)';
+  ctx2d.fillRect(0, 0, W, H);
+  
+  var totalMs = maxEnd;
+  var contentWidth = W * zoom;
+  
+  // 波形区域
+  var waveformHeight = H * 0.35;
+  var waveformY = H * 0.08;
+  
+  if (waveformData && waveformData.length > 0) {
+    var samplesPerPx = waveformData.length / contentWidth;
+    var startSample = Math.floor(panOffset / contentWidth * waveformData.length);
+    
+    ctx2d.fillStyle = 'var(--waveform-color)';
+    
+    for (var x = 0; x < W; x++) {
+      var sampleIdx = Math.floor(startSample + x * samplesPerPx);
+      if (sampleIdx >= 0 && sampleIdx < waveformData.length) {
+        var amp = waveformData[sampleIdx];
+        var barHeight = amp * waveformHeight;
+        var y = waveformY + (waveformHeight - barHeight) / 2;
+        ctx2d.globalAlpha = 0.5 + amp * 0.5;
+        ctx2d.fillRect(x, y, 1, barHeight);
+      }
+    }
+    ctx2d.globalAlpha = 1;
+  }
+  
+  // 中心线
+  ctx2d.strokeStyle = 'var(--border)';
+  ctx2d.lineWidth = 1;
+  ctx2d.beginPath();
+  ctx2d.moveTo(0, waveformY + waveformHeight/2);
+  ctx2d.lineTo(W, waveformY + waveformHeight/2);
+  ctx2d.stroke();
+  
+  // 字幕块
+  var blockY = H * 0.55;
+  var blockHeight = H * 0.35;
+  subtitles.forEach(function(sub, i) {
+    var x = (sub.start / totalMs) * contentWidth - panOffset;
+    var w = ((sub.end - sub.start) / totalMs) * contentWidth;
+    if (x + w < 0 || x > W) return;
+    
+    var isSelected = i === selectedIndex;
+    var currentTime = isPlaying ? (playOffset + Date.now() - playStartTime) : playOffset;
+    var isActive = currentTime >= sub.start && currentTime <= sub.end;
+    
+    ctx2d.fillStyle = isActive ? 'var(--accent)' : (isSelected ? 'var(--block-selected)' : 'var(--block-bg)');
+    ctx2d.globalAlpha = isActive ? 0.9 : (isSelected ? 0.8 : 0.6);
+    ctx2d.fillRect(Math.max(0, x), blockY, Math.max(2, w), blockHeight);
+    ctx2d.globalAlpha = 1;
+    
+    if (w > 30) {
+      ctx2d.fillStyle = '#fff';
+      ctx2d.font = '10px sans-serif';
+      var txt = sub.text.replace(/\n/g,' ').slice(0, Math.floor(w/5));
+      ctx2d.fillText(txt, Math.max(4, x+4), blockY + blockHeight/2 + 4);
+    }
+  });
+  
+  // 标尺
+  var secInterval = Math.max(1, Math.floor(5 / zoom));
+  for (var sec = 0; sec <= totalMs/1000 + 1; sec += secInterval) {
+    var x = (sec * 1000 / totalMs) * contentWidth - panOffset;
+    if (x < -40 || x > W+10) continue;
+    ctx2d.strokeStyle = 'var(--border)';
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath();
+    ctx2d.moveTo(x, 0);
+    ctx2d.lineTo(x, H);
+    ctx2d.stroke();
+    ctx2d.fillStyle = 'var(--text-muted)';
+    ctx2d.font = '10px var(--font-mono)';
+    ctx2d.fillText(Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'), x+2, 12);
+  }
+  
+  // 播放头
+  var currentTime = isPlaying ? (playOffset + Date.now() - playStartTime) : playOffset;
+  var px = (currentTime / totalMs) * contentWidth - panOffset;
+  if (px >= 0 && px <= W) {
+    ctx2d.strokeStyle = 'var(--playhead)';
+    ctx2d.lineWidth = 2;
+    ctx2d.beginPath();
+    ctx2d.moveTo(px, 0);
+    ctx2d.lineTo(px, H);
+    ctx2d.stroke();
+    
+    ctx2d.fillStyle = 'var(--playhead)';
+    ctx2d.beginPath();
+    ctx2d.moveTo(px, 0);
+    ctx2d.lineTo(px-6, 10);
+    ctx2d.lineTo(px+6, 10);
+    ctx2d.closePath();
+    ctx2d.fill();
+  }
+}
+
+// ==================== CENTER EDITOR ====================
+function renderCenterEditor() {
+  if (selectedIndex < 0 || selectedIndex >= subtitles.length) {
+    editorEmptyState.style.display = 'flex';
+    editorContent.style.display = 'none';
+    return;
+  }
+  editorEmptyState.style.display = 'none';
+  editorContent.style.display = 'flex';
+  const sub = subtitles[selectedIndex];
+  editorSeqNum.textContent = '#' + sub.index;
+  editorStartTime.value = msToTime(sub.start);
+  editorEndTime.value = msToTime(sub.end);
+  editorText.value = sub.text;
+}
+
+function saveCenterEditor() {
+  if (selectedIndex < 0) return;
+  saveHistory();
+  const sub = subtitles[selectedIndex];
+  sub.start = timeToMs(editorStartTime.value);
+  sub.end = timeToMs(editorEndTime.value);
+  sub.text = editorText.value;
+  renderSubtitles();
+  renderTimeline();
+  renderTimelineInfo();
+  toast('已保存');
+}
+
+function renderTimelineInfo() {
+  if (!subtitles.length) { timelineInfo.innerHTML = ''; return; }
+  const sub = selectedIndex >= 0 ? subtitles[selectedIndex] : null;
+  let html = '<div class="timeline-info-item"><div class="label">总字幕数</div><div>' + subtitles.length + ' 条</div></div>';
+  if (sub) {
+    html += '<div class="timeline-info-item"><div class="label">当前字幕</div><div>#' + sub.index + '</div></div>';
+    html += '<div class="timeline-info-item"><div class="label">时长</div><div>' + ((sub.end-sub.start)/1000).toFixed(2) + 's</div></div>';
+    html += '<div class="timeline-info-item"><div class="label">字数</div><div>' + sub.text.replace(/\n/g,'').length + ' 字</div></div>';
+  }
+  timelineInfo.innerHTML = html;
+}
+
+// ==================== AUTO SPACE ====================
+function autoSpace(text) {
+  return text.replace(/([\u4e00-\u9fa5])([a-zA-Z0-9])/g,'$1 $2').replace(/([a-zA-Z0-9])([\u4e00-\u9fa5])/g,'$1 $2');
+}
+
+function applyAutoSpace() {
+  if (!subtitles.length) return;
+  saveHistory();
+  subtitles.forEach(sub => { sub.text = autoSpace(sub.text); });
+  renderSubtitles();
+  toast('已自动添加空格');
+}
+
+// ==================== TERM RULES ====================
+// 500 core rules generated inline
+const BUILTIN_RULES = [];
+const RULE_DATA = [
+  ["apple","Apple"],["iphone","iPhone"],["ipad","iPad"],["ipod","iPod"],["imac","iMac"],
+  ["macbook","MacBook"],["macbook pro","MacBook Pro"],["macbook air","MacBook Air"],
+  ["mac pro","Mac Pro"],["mac studio","Mac Studio"],["mac mini","Mac mini"],
+  ["apple watch","Apple Watch"],["airpods","AirPods"],["airpods pro","AirPods Pro"],
+  ["airpods max","AirPods Max"],["homepod","HomePod"],["apple tv","Apple TV"],
+  ["vision pro","Vision Pro"],["ios","iOS"],["macos","macOS"],["watchos","watchOS"],
+  ["tvos","tvOS"],["ipados","iPadOS"],["face id","Face ID"],["touch id","Touch ID"],
+  ["retina","Retina"],["apple silicon","Apple Silicon"],["samsung","Samsung"],
+  ["galaxy","Galaxy"],["galaxy s24","Galaxy S24"],["galaxy s23","Galaxy S23"],
+  ["galaxy z","Galaxy Z"],["galaxy z fold","Galaxy Z Fold"],["galaxy z flip","Galaxy Z Flip"],
+  ["galaxy note","Galaxy Note"],["galaxy tab","Galaxy Tab"],["galaxy watch","Galaxy Watch"],
+  ["galaxy buds","Galaxy Buds"],["exynos","Exynos"],["bixby","Bixby"],["one ui","One UI"],
+  ["dex","DeX"],["knox","Knox"],["tizen","Tizen"],["smartthings","SmartThings"],
+  ["xiaomi","Xiaomi"],["redmi","Redmi"],["poco","POCO"],["huawei","Huawei"],
+  ["honor","Honor"],["oppo","OPPO"],["vivo","vivo"],["oneplus","OnePlus"],
+  ["realme","realme"],["iqoo","iQOO"],["dji","DJI"],["mavic","Mavic"],["phantom","Phantom"],
+  ["inspire","Inspire"],["ronin","Ronin"],["osmo","Osmo"],["pocket","Pocket"],
+  ["action","Action"],["lenovo","Lenovo"],["motorola","Motorola"],["meizu","Meizu"],
+  ["nubia","Nubia"],["redmagic","RedMagic"],["black shark","Black Shark"],["zte","ZTE"],
+  ["byd","BYD"],["nio","NIO"],["xpeng","Xpeng"],["li auto","Li Auto"],["zeekr","Zeekr"],
+  ["geely","Geely"],["chery","Chery"],["google","Google"],["android","Android"],
+  ["pixel","Pixel"],["pixel 7","Pixel 7"],["pixel 8","Pixel 8"],["chrome","Chrome"],
+  ["chromebook","Chromebook"],["chromecast","Chromecast"],["nest","Nest"],
+  ["google home","Google Home"],["google assistant","Google Assistant"],["tensor","Tensor"],
+  ["wear os","Wear OS"],["google play","Google Play"],["youtube","YouTube"],
+  ["gmail","Gmail"],["google drive","Google Drive"],["google maps","Google Maps"],
+  ["google photos","Google Photos"],["firebase","Firebase"],["flutter","Flutter"],
+  ["dart","Dart"],["go","Go"],["golang","Golang"],["kubernetes","Kubernetes"],
+  ["tensorflow","TensorFlow"],["bert","BERT"],["gemini","Gemini"],["palm","PaLM"],
+  ["bard","Bard"],["waymo","Waymo"],["deepmind","DeepMind"],["alphabet","Alphabet"],
+  ["openai","OpenAI"],["chatgpt","ChatGPT"],["gpt-4","GPT-4"],["gpt-4o","GPT-4o"],
+  ["gpt-3.5","GPT-3.5"],["claude","Claude"],["dall-e","DALL-E"],["midjourney","Midjourney"],
+  ["stable diffusion","Stable Diffusion"],["sora","Sora"],["runway","Runway"],
+  ["elevenlabs","ElevenLabs"],["anthropic","Anthropic"],["hugging face","Hugging Face"],
+  ["langchain","LangChain"],["llama","Llama"],["llama 2","Llama 2"],["llama 3","Llama 3"],
+  ["mistral","Mistral"],["mixtral","Mixtral"],["grok","Grok"],["xai","xAI"],
+  ["perplexity","Perplexity"],["microsoft","Microsoft"],["windows","Windows"],
+  ["windows 11","Windows 11"],["windows 10","Windows 10"],["surface","Surface"],
+  ["surface pro","Surface Pro"],["surface laptop","Surface Laptop"],["xbox","Xbox"],
+  ["xbox series","Xbox Series"],["xbox one","Xbox One"],["game pass","Game Pass"],
+  ["microsoft 365","Microsoft 365"],["office","Office"],["word","Word"],["excel","Excel"],
+  ["powerpoint","PowerPoint"],["outlook","Outlook"],["teams","Teams"],["edge","Edge"],
+  ["bing","Bing"],["azure","Azure"],["azure openai","Azure OpenAI"],["onedrive","OneDrive"],
+  ["copilot","Copilot"],["visual studio","Visual Studio"],["vs code","VS Code"],
+  ["github","GitHub"],["linkedin","LinkedIn"],["skype","Skype"],["minecraft","Minecraft"],
+  ["blizzard","Blizzard"],["sony","Sony"],["playstation","PlayStation"],["ps5","PS5"],
+  ["ps4","PS4"],["dualsense","DualSense"],["ps vr","PS VR"],["xperia","Xperia"],
+  ["bravia","Bravia"],["wh-1000xm","WH-1000XM"],["alpha","Alpha"],["facebook","Facebook"],
+  ["instagram","Instagram"],["whatsapp","WhatsApp"],["messenger","Messenger"],
+  ["tiktok","TikTok"],["douyin","Douyin"],["twitter","Twitter"],["snapchat","Snapchat"],
+  ["pinterest","Pinterest"],["reddit","Reddit"],["discord","Discord"],["telegram","Telegram"],
+  ["wechat","WeChat"],["weibo","Weibo"],["xiaohongshu","Xiaohongshu"],["zhihu","Zhihu"],
+  ["bilibili","Bilibili"],["twitch","Twitch"],["onlyfans","OnlyFans"],["patreon","Patreon"],
+  ["substack","Substack"],["medium","Medium"],["quora","Quora"],["tumblr","Tumblr"],
+  ["flickr","Flickr"],["meetup","Meetup"],["nextdoor","Nextdoor"],["clubhouse","Clubhouse"],
+  ["be real","BeReal"],["lemon8","Lemon8"],["amazon","Amazon"],["aws","AWS"],
+  ["ec2","EC2"],["s3","S3"],["lambda","Lambda"],["gcp","GCP"],["google cloud","Google Cloud"],
+  ["cloudflare","Cloudflare"],["vercel","Vercel"],["netlify","Netlify"],["heroku","Heroku"],
+  ["digitalocean","DigitalOcean"],["linode","Linode"],["oracle cloud","Oracle Cloud"],
+  ["ibm cloud","IBM Cloud"],["alibaba cloud","Alibaba Cloud"],["tencent cloud","Tencent Cloud"],
+  ["huawei cloud","Huawei Cloud"],["baidu cloud","Baidu Cloud"],["baidu","Baidu"],
+  ["paddlepaddle","PaddlePaddle"],["wenxin","Wenxin"],["qianwen","Qianwen"],
+  ["tongyi","Tongyi"],["qwen","Qwen"],["kimi","Kimi"],["chatglm","ChatGLM"],
+  ["ernie","ERNIE"],["docker","Docker"],["jenkins","Jenkins"],["git","Git"],
+  ["github actions","GitHub Actions"],["gitlab","GitLab"],["bitbucket","Bitbucket"],
+  ["ansible","Ansible"],["terraform","Terraform"],["vagrant","Vagrant"],["puppet","Puppet"],
+  ["chef","Chef"],["nginx","Nginx"],["apache","Apache"],["tomcat","Tomcat"],
+  ["redis","Redis"],["mongodb","MongoDB"],["elasticsearch","Elasticsearch"],["kafka","Kafka"],
+  ["rabbitmq","RabbitMQ"],["prometheus","Prometheus"],["grafana","Grafana"],["jaeger","Jaeger"],
+  ["istio","Istio"],["envoy","Envoy"],["consul","Consul"],["etcd","etcd"],["vault","Vault"],
+  ["helm","Helm"],["argocd","ArgoCD"],["tekton","Tekton"],["spinnaker","Spinnaker"],
+  ["mysql","MySQL"],["postgresql","PostgreSQL"],["oracle","Oracle"],["sql server","SQL Server"],
+  ["sqlite","SQLite"],["mariadb","MariaDB"],["cassandra","Cassandra"],["couchdb","CouchDB"],
+  ["dynamodb","DynamoDB"],["firestore","Firestore"],["neo4j","Neo4j"],["influxdb","InfluxDB"],
+  ["timescaledb","TimescaleDB"],["javascript","JavaScript"],["typescript","TypeScript"],
+  ["python","Python"],["java","Java"],["kotlin","Kotlin"],["scala","Scala"],["groovy","Groovy"],
+  ["swift","Swift"],["objective-c","Objective-C"],["ruby","Ruby"],["php","PHP"],["perl","Perl"],
+  ["lua","Lua"],["r","R"],["matlab","MATLAB"],["julia","Julia"],["rust","Rust"],
+  ["csharp","C#"],["dotnet",".NET"],["aspnet","ASP.NET"],["cpp","C++"],["c++","C++"],
+  ["c","C"],["haskell","Haskell"],["elixir","Elixir"],["erlang","Erlang"],["clojure","Clojure"],
+  ["fsharp","F#"],["ocaml","OCaml"],["fortran","Fortran"],["cobol","COBOL"],["pascal","Pascal"],
+  ["delphi","Delphi"],["vba","VBA"],["react","React"],["react native","React Native"],
+  ["vue","Vue"],["vue.js","Vue.js"],["angular","Angular"],["svelte","Svelte"],
+  ["solidjs","SolidJS"],["preact","Preact"],["jquery","jQuery"],["bootstrap","Bootstrap"],
+  ["tailwind","Tailwind"],["tailwind css","Tailwind CSS"],["sass","Sass"],["less","Less"],
+  ["stylus","Stylus"],["postcss","PostCSS"],["webpack","Webpack"],["vite","Vite"],
+  ["rollup","Rollup"],["parcel","Parcel"],["esbuild","esbuild"],["swc","SWC"],["babel","Babel"],
+  ["eslint","ESLint"],["prettier","Prettier"],["jest","Jest"],["mocha","Mocha"],["jasmine","Jasmine"],
+  ["cypress","Cypress"],["playwright","Playwright"],["puppeteer","Puppeteer"],["selenium","Selenium"],
+  ["storybook","Storybook"],["next.js","Next.js"],["nuxt","Nuxt"],["gatsby","Gatsby"],
+  ["astro","Astro"],["remix","Remix"],["sveltekit","SvelteKit"],["express","Express"],
+  ["koa","Koa"],["fastify","Fastify"],["nest","Nest"],["nestjs","NestJS"],["django","Django"],
+  ["flask","Flask"],["fastapi","FastAPI"],["tornado","Tornado"],["pyramid","Pyramid"],
+  ["bottle","Bottle"],["rails","Rails"],["sinatra","Sinatra"],["laravel","Laravel"],
+  ["symfony","Symfony"],["codeigniter","CodeIgniter"],["cakephp","CakePHP"],["zend","Zend"],
+  ["yii","Yii"],["phalcon","Phalcon"],["fuelphp","FuelPHP"],["slim","Slim"],["lumen","Lumen"],
+  ["spring","Spring"],["spring boot","Spring Boot"],["hibernate","Hibernate"],["struts","Struts"],
+  ["play framework","Play Framework"],["micronaut","Micronaut"],["quarkus","Quarkus"],
+  ["ktor","Ktor"],["grails","Grails"],["phoenix","Phoenix"],["cpu","CPU"],["gpu","GPU"],
+  ["ram","RAM"],["ssd","SSD"],["hdd","HDD"],["nvme","NVMe"],["usb","USB"],["usb-c","USB-C"],
+  ["thunderbolt","Thunderbolt"],["hdmi","HDMI"],["displayport","DisplayPort"],["dp","DP"],
+  ["vga","VGA"],["dvi","DVI"],["wi-fi","Wi-Fi"],["wifi","Wi-Fi"],["bluetooth","Bluetooth"],
+  ["nfc","NFC"],["gps","GPS"],["lte","LTE"],["5g","5G"],["4g","4G"],["3g","3G"],
+  ["oled","OLED"],["amoled","AMOLED"],["lcd","LCD"],["ips","IPS"],["tn","TN"],["va","VA"],
+  ["hdr","HDR"],["dolby vision","Dolby Vision"],["dolby atmos","Dolby Atmos"],["dts","DTS"],
+  ["haptic","Haptic"],["taptic","Taptic"],["canon","Canon"],["nikon","Nikon"],["fujifilm","Fujifilm"],
+  ["panasonic","Panasonic"],["leica","Leica"],["hasselblad","Hasselblad"],["phase one","Phase One"],
+  ["red camera","RED Camera"],["arri","ARRI"],["blackmagic","Blackmagic"],["bmpcc","BMPCC"],
+  ["ursa","URSA"],["gopro","GoPro"],["insta360","Insta360"],["ricoh","Ricoh"],["theta","Theta"],
+  ["lumix","Lumix"],["gh5","GH5"],["gh6","GH6"],["s1h","S1H"],["s5","S5"],["a7s","A7S"],
+  ["a7iv","A7IV"],["a7iii","A7III"],["a7c","A7C"],["a7cr","A7CR"],["a7rv","A7RV"],["a1","A1"],
+  ["fx3","FX3"],["fx6","FX6"],["fx9","FX9"],["fx30","FX30"],["venice","VENICE"],
+  ["adobe","Adobe"],["photoshop","Photoshop"],["premiere","Premiere"],["premiere pro","Premiere Pro"],
+  ["after effects","After Effects"],["audition","Audition"],["lightroom","Lightroom"],
+  ["illustrator","Illustrator"],["indesign","InDesign"],["acrobat","Acrobat"],["xd","XD"],
+  ["figma","Figma"],["sketch","Sketch"],["invision","InVision"],["framer","Framer"],
+  ["principle","Principle"],["protopie","ProtoPie"],["axure","Axure"],["balsamiq","Balsamiq"],
+  ["marvel","Marvel"],["zeplin","Zeplin"],["abstract","Abstract"],["lottie","Lottie"],["rive","Rive"],
+  ["blender","Blender"],["maya","Maya"],["3ds max","3ds Max"],["cinema 4d","Cinema 4D"],["c4d","C4D"],
+  ["houdini","Houdini"],["nuke","Nuke"],["davinci resolve","DaVinci Resolve"],["final cut pro","Final Cut Pro"],
+  ["final cut","Final Cut"],["fcp","FCP"],["fcp x","FCP X"],["motion","Motion"],["compressor","Compressor"],
+  ["logic pro","Logic Pro"],["garageband","GarageBand"],["ableton","Ableton"],["ableton live","Ableton Live"],
+  ["fl studio","FL Studio"],["pro tools","Pro Tools"],["cubase","Cubase"],["studio one","Studio One"],
+  ["reaper","Reaper"],["audacity","Audacity"],["obs","OBS"],["obs studio","OBS Studio"],
+  ["streamlabs","Streamlabs"],["xsplit","XSplit"],["vmix","vMix"],["wirecast","Wirecast"],
+  ["ecamm","Ecamm"],["restream","Restream"],["prism","Prism"],["bandicam","Bandicam"],
+  ["camtasia","Camtasia"],["snagit","Snagit"],["screenflow","ScreenFlow"],["loom","Loom"],
+  ["screencast-o-matic","Screencast-O-Matic"],["clipchamp","Clipchamp"],["canva","Canva"],
+  ["capcut","CapCut"],["剪映","剪映"],["剪映专业版","剪映专业版"],["快影","快影"],["必剪","必剪"],
+  ["度加","度加"],["秒剪","秒剪"],["wink","Wink"],["快剪辑","快剪辑"],["爱剪辑","爱剪辑"],
+  ["拍大师","拍大师"],["会声会影","会声会影"],["威力导演","威力导演"],["edius","EDIUS"],
+  ["vegas","Vegas"],["vegas pro","Vegas Pro"],["movie maker","Movie Maker"],["imovie","iMovie"],
+  ["nintendo","Nintendo"],["switch","Switch"],["switch oled","Switch OLED"],["switch lite","Switch Lite"],
+  ["wii","Wii"],["wii u","Wii U"],["3ds","3DS"],["ds","DS"],["gameboy","Game Boy"],
+  ["gamecube","GameCube"],["n64","N64"],["snes","SNES"],["nes","NES"],["steam","Steam"],
+  ["steam deck","Steam Deck"],["epic games","Epic Games"],["epic","Epic"],["gog","GOG"],
+  ["itch.io","itch.io"],["origin","Origin"],["ea app","EA App"],["ubisoft","Ubisoft"],
+  ["ubisoft connect","Ubisoft Connect"],["uplay","Uplay"],["battlenet","Battle.net"],
+  ["battle.net","Battle.net"],["rockstar","Rockstar"],["rockstar games","Rockstar Games"],
+  ["social club","Social Club"],["discord","Discord"],["twitch","Twitch"],
+  ["youtube gaming","YouTube Gaming"],["facebook gaming","Facebook Gaming"],["netflix","Netflix"],
+  ["hulu","Hulu"],["disney+","Disney+"],["disney plus","Disney+"],["hbo","HBO"],["hbo max","HBO Max"],
+  ["max","Max"],["peacock","Peacock"],["paramount+","Paramount+"],["paramount plus","Paramount+"],
+  ["apple tv+","Apple TV+"],["apple tv plus","Apple TV+"],["amazon prime","Amazon Prime"],
+  ["prime video","Prime Video"],["youtube premium","YouTube Premium"],["youtube music","YouTube Music"],
+  ["spotify","Spotify"],["apple music","Apple Music"],["tidal","Tidal"],["deezer","Deezer"],
+  ["soundcloud","SoundCloud"],["bandcamp","Bandcamp"],["pandora","Pandora"],["iheartradio","iHeartRadio"],
+  ["siriusxm","SiriusXM"],["audible","Audible"],["kindle","Kindle"],["kindle unlimited","Kindle Unlimited"],
+  ["comixology","Comixology"],["crunchyroll","Crunchyroll"],["funimation","Funimation"],["hidive","HiDive"],
+  ["vrv","VRV"],["roku","Roku"],["fire tv","Fire TV"],["fire tv stick","Fire TV Stick"],
+  ["apple tv 4k","Apple TV 4K"],["shield tv","SHIELD TV"],["nvidia shield","NVIDIA SHIELD"],
+  ["xiaomi tv","Xiaomi TV"],["mi tv","Mi TV"],["redmi tv","Redmi TV"],["tcl tv","TCL TV"],
+  ["hisense tv","Hisense TV"],["skyworth","Skyworth"],["changhong","Changhong"],["konka","Konka"],
+  ["haier tv","Haier TV"],["casarte","Casarte"],["leader","Leader"],["paypal","PayPal"],["stripe","Stripe"],
+  ["alipay","Alipay"],["wechat pay","WeChat Pay"],["unionpay","UnionPay"],["visa","Visa"],
+  ["mastercard","Mastercard"],["american express","American Express"],["amex","Amex"],
+  ["discover","Discover"],["jcb","JCB"],["diners club","Diners Club"],["apple pay","Apple Pay"],
+  ["google pay","Google Pay"],["samsung pay","Samsung Pay"],["shopify","Shopify"],["woocommerce","WooCommerce"],
+  ["magento","Magento"],["bigcommerce","BigCommerce"],["squarespace","Squarespace"],["wix","Wix"],
+  ["weebly","Weebly"],["etsy","Etsy"],["ebay","eBay"],["taobao","Taobao"],["tmall","Tmall"],
+  ["jd","JD"],["jd.com","JD.com"],["pinduoduo","Pinduoduo"],["suning","Suning"],["gome","Gome"],
+  ["dangdang","Dangdang"],["vipshop","Vipshop"],["meituan","Meituan"],["ele.me","Ele.me"],
+  ["dianping","Dianping"],["ctrip","Ctrip"],["trip.com","Trip.com"],["qunar","Qunar"],
+  ["fliggy","Fliggy"],["tuniu","Tuniu"],["ly.com","LY.com"],["mafengwo","Mafengwo"],["xiecheng","Xiecheng"],
+  ["booking.com","Booking.com"],["agoda","Agoda"],["expedia","Expedia"],["trivago","Trivago"],
+  ["hotels.com","Hotels.com"],["airbnb","Airbnb"],["vrbo","Vrbo"],["homeaway","HomeAway"],
+  ["html","HTML"],["html5","HTML5"],["css","CSS"],["css3","CSS3"],["http","HTTP"],["https","HTTPS"],
+  ["rest","REST"],["api","API"],["graphql","GraphQL"],["websocket","WebSocket"],["webrtc","WebRTC"],
+  ["webgl","WebGL"],["webgpu","WebGPU"],["wasm","WASM"],["webassembly","WebAssembly"],["pwa","PWA"],
+  ["spa","SPA"],["ssr","SSR"],["csr","CSR"],["seo","SEO"],["dom","DOM"],["bom","BOM"],["ajax","AJAX"],
+  ["json","JSON"],["xml","XML"],["yaml","YAML"],["toml","TOML"],["csv","CSV"],["tsv","TSV"],
+  ["svg","SVG"],["canvas","Canvas"],["web components","Web Components"],["shadow dom","Shadow DOM"],
+  ["custom elements","Custom Elements"],["service worker","Service Worker"],["manifest","Manifest"],
+  ["push api","Push API"],["notifications api","Notifications API"],["geolocation api","Geolocation API"],
+  ["device orientation","Device Orientation"],["device motion","Device Motion"],["vibration api","Vibration API"],
+  ["battery api","Battery API"],["network information","Network Information"],["online/offline","Online/Offline"],
+  ["page visibility","Page Visibility"],["fullscreen","Fullscreen"],["pointer lock","Pointer Lock"],
+  ["drag and drop","Drag and Drop"],["clipboard api","Clipboard API"],["file api","File API"],
+  ["file reader","File Reader"],["blob","Blob"],["array buffer","Array Buffer"],["typed array","Typed Array"],
+  ["dataview","DataView"],["sharedarraybuffer","SharedArrayBuffer"],["web worker","Web Worker"],
+  ["shared worker","Shared Worker"],["worklet","Worklet"],["paint worklet","Paint Worklet"],
+  ["animation worklet","Animation Worklet"],["audio worklet","Audio Worklet"],["layout worklet","Layout Worklet"],
+  ["mp3","MP3"],["mp4","MP4"],["aac","AAC"],["flac","FLAC"],["wav","WAV"],["ogg","OGG"],["opus","Opus"],
+  ["m4a","M4A"],["wma","WMA"],["aiff","AIFF"],["alac","ALAC"],["dsd","DSD"],["sacd","SACD"],
+  ["h.264","H.264"],["h264","H.264"],["h.265","H.265"],["h265","H.265"],["hevc","HEVC"],["av1","AV1"],
+  ["vp8","VP8"],["vp9","VP9"],["mpeg","MPEG"],["mpeg-2","MPEG-2"],["mpeg-4","MPEG-4"],["avc","AVC"],
+  ["prores","ProRes"],["apple prores","Apple ProRes"],["dnxhr","DNxHR"],["dnxhd","DNxHD"],
+  ["cineform","CineForm"],["gopro cineform","GoPro CineForm"],["raw","RAW"],["braw","BRAW"],["r3d","R3D"],
+  ["redcode","REDCODE"],["arriraw","ARRIRAW"],["sony raw","Sony RAW"],["x-ocn","X-OCN"],
+  ["canon raw","Canon RAW"],["canon cinema raw","Canon Cinema RAW"],["n-raw","N-RAW"],["z-raw","Z-RAW"],
+  ["cdng","CDNG"],["mlv","MLV"],["dng","DNG"],["tiff","TIFF"],["png","PNG"],["gif","GIF"],["webp","WebP"],
+  ["heif","HEIF"],["heic","HEIC"],["avif","AVIF"],["jpeg","JPEG"],["jpg","JPG"],["bmp","BMP"],["ico","ICO"],
+  ["icns","ICNS"],["eps","EPS"],["pdf","PDF"],["psd","PSD"],["ai","AI"],["indd","INDD"],["idml","IDML"],
+  ["qxd","QXD"],["qxp","QXP"],["pub","PUB"],["doc","DOC"],["docx","DOCX"],["xls","XLS"],["xlsx","XLSX"],
+  ["ppt","PPT"],["pptx","PPTX"],["rtf","RTF"],["txt","TXT"],["md","MD"],["markdown","Markdown"],
+  ["tex","TeX"],["latex","LaTeX"],["bib","BIB"],["ris","RIS"],["enw","ENW"],["zip","ZIP"],["rar","RAR"],
+  ["7z","7z"],["tar","TAR"],["gz","GZ"],["bz2","BZ2"],["xz","XZ"],["lz4","LZ4"],["zstd","Zstd"],
+  ["snappy","Snappy"],["brotli","Brotli"],["gzip","Gzip"],["deflate","Deflate"],["lzma","LZMA"],
+  ["lzma2","LZMA2"],["tcp","TCP"],["udp","UDP"],["ip","IP"],["ipv4","IPv4"],["ipv6","IPv6"],
+  ["dns","DNS"],["dhcp","DHCP"],["nat","NAT"],["vpn","VPN"],["lan","LAN"],["wan","WAN"],["wlan","WLAN"],
+  ["vlan","VLAN"],["sdn","SDN"],["nfv","NFV"],["cdn","CDN"],["ddos","DDoS"],["firewall","Firewall"],
+  ["proxy","Proxy"],["load balancer","Load Balancer"],["reverse proxy","Reverse Proxy"],["gateway","Gateway"],
+  ["router","Router"],["switch","Switch"],["hub","Hub"],["bridge","Bridge"],["repeater","Repeater"],
+  ["access point","Access Point"],["mesh","Mesh"],["mesh wifi","Mesh Wi-Fi"],["wifi 6","Wi-Fi 6"],
+  ["wifi 6e","Wi-Fi 6E"],["wifi 7","Wi-Fi 7"],["802.11","802.11"],["5ghz","5GHz"],["2.4ghz","2.4GHz"],
+  ["6ghz","6GHz"],["ofdma","OFDMA"],["mu-mimo","MU-MIMO"],["beamforming","Beamforming"],["mimo","MIMO"],
+  ["simo","SIMO"],["miso","MISO"],["tls","TLS"],["ssl","SSL"],["oauth","OAuth"],["oauth2","OAuth2"],
+  ["openid","OpenID"],["jwt","JWT"],["saml","SAML"],["ldap","LDAP"],["kerberos","Kerberos"],["radius","RADIUS"],
+  ["tacacs+","TACACS+"],["mfa","MFA"],["2fa","2FA"],["totp","TOTP"],["hotp","HOTP"],["fido","FIDO"],
+  ["fido2","FIDO2"],["webauthn","WebAuthn"],["passkey","Passkey"],["biometric","Biometric"],["pin","PIN"],
+  ["password","Password"],["passphrase","Passphrase"],["encryption","Encryption"],["decryption","Decryption"],
+  ["hash","Hash"],["checksum","Checksum"],["crc","CRC"],["md5","MD5"],["sha-1","SHA-1"],["sha-256","SHA-256"],
+  ["sha-512","SHA-512"],["sha-3","SHA-3"],["blake2","BLAKE2"],["blake3","BLAKE3"],["aes","AES"],["rsa","RSA"],
+  ["ecc","ECC"],["ecdsa","ECDSA"],["eddsa","EdDSA"],["curve25519","Curve25519"],["x25519","X25519"],
+  ["x448","X448"],["diffie-hellman","Diffie-Hellman"],["dh","DH"],["ecdh","ECDH"],["pgp","PGP"],["gpg","GPG"],
+  ["s/mime","S/MIME"],["x.509","X.509"],["pkcs","PKCS"],["pem","PEM"],["der","DER"],["cer","CER"],["crt","CRT"],
+  ["p12","P12"],["pfx","PFX"],["jks","JKS"],["keystore","Keystore"],["truststore","Truststore"],["hsm","HSM"],
+  ["tpm","TPM"],["secure enclave","Secure Enclave"],["tee","TEE"],["trustzone","TrustZone"],["sgx","SGX"],
+  ["sev","SEV"],["tdx","TDX"],["cve","CVE"],["cwe","CWE"],["cvss","CVSS"],["owasp","OWASP"],["sans","SANS"],
+  ["nist","NIST"],["iso 27001","ISO 27001"],["soc 2","SOC 2"],["hipaa","HIPAA"],["gdpr","GDPR"],["ccpa","CCPA"],
+  ["pci dss","PCI DSS"],["ferpa","FERPA"],["coppa","COPPA"],["sox","SOX"],["glba","GLBA"],["ffiec","FFIEC"],
+  ["basel","Basel"],["basel iii","Basel III"],["basel iv","Basel IV"],["fatf","FATF"],["ofac","OFAC"],
+  ["sanctions","Sanctions"],["aml","AML"],["kyc","KYC"],["kyb","KYB"],["cdd","CDD"],["edd","EDD"],["pep","PEP"],
+  ["adverse media","Adverse Media"],["transaction monitoring","Transaction Monitoring"],
+  ["suspicious activity","Suspicious Activity"],["sar","SAR"],["str","STR"],["ctr","CTR"],["cmir","CMIR"],
+  ["fintrac","FINTRAC"],["fincen","FinCEN"],["mas","MAS"],["fca","FCA"],["prudential","Prudential"],
+  ["cftc","CFTC"],["sec","SEC"],["finra","FINRA"],["msrb","MSRB"],["sipc","SIPC"],["fdic","FDIC"],
+  ["ncua","NCUA"],["occ","OCC"],["cfpb","CFPB"],["fhfa","FHFA"],["hud","HUD"],["fha","FHA"],["va","VA"],
+  ["usda","USDA"],["sba","SBA"],["ex-im","EX-IM"],["opic","OPIC"],["dfc","DFC"],["usaid","USAID"],
+  ["mcc","MCC"],["pepfar","PEPFAR"],["peace corps","Peace Corps"],["state department","State Department"],
+  ["treasury","Treasury"],["justice department","Justice Department"],["defense department","Defense Department"],
+  ["homeland security","Homeland Security"],["energy department","Energy Department"],
+  ["interior department","Interior Department"],["agriculture department","Agriculture Department"],
+  ["commerce department","Commerce Department"],["labor department","Labor Department"],
+  ["health and human services","Health and Human Services"],["hhs","HHS"],
+  ["education department","Education Department"],["transportation department","Transportation Department"],
+  ["housing and urban development","Housing and Urban Development"],["epa","EPA"],["nasa","NASA"],["nsf","NSF"],
+  ["nih","NIH"],["cdc","CDC"],["fda","FDA"],["uspto","USPTO"],["copyright office","Copyright Office"],
+  ["library of congress","Library of Congress"],["smithsonian","Smithsonian"],["national archives","National Archives"],
+  ["usps","USPS"],["amtrak","Amtrak"],["tva","TVA"],["fannie mae","Fannie Mae"],["freddie mac","Freddie Mac"],
+  ["ginnie mae","Ginnie Mae"],["sallie mae","Sallie Mae"],["federal reserve","Federal Reserve"],["fed","Fed"],
+  ["fomc","FOMC"],["new york fed","New York Fed"],["imf","IMF"],["world bank","World Bank"],["wto","WTO"],
+  ["oecd","OECD"],["g7","G7"],["g20","G20"],["brics","BRICS"],["apec","APEC"],["asean","ASEAN"],["eu","EU"],
+  ["ecb","ECB"],["boe","BoE"],["boj","BoJ"],["pboc","PBOC"],["rbi","RBI"],["cbi","CBI"],["rba","RBA"],
+  ["rbnz","RBNZ"],["boc","BoC"],["snb","SNB"],["riksbank","Riksbank"],["norges bank","Norges Bank"],
+  ["danmarks nationalbank","Danmarks Nationalbank"]
+];
+
+RULE_DATA.forEach(([p,r]) => {
+  BUILTIN_RULES.push({pattern: p, replacement: r, enabled: true, builtin: true});
+});
+
+function getActiveRules() {
+  const rules = [];
+  BUILTIN_RULES.forEach((r,i) => { if (r.enabled && !disabledBuiltinIndices.has(i)) rules.push(r); });
+  rules.push(...customRules.filter(r => r.enabled !== false));
+  return rules;
+}
+
+function applyTermFix() {
+  if (!subtitles.length) return;
+  saveHistory();
+  const rules = getActiveRules();
+  subtitles.forEach(sub => {
+    rules.forEach(rule => {
+      const re = new RegExp('\\b' + rule.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+      sub.text = sub.text.replace(re, rule.replacement);
+    });
+  });
+  renderSubtitles();
+  toast('已修正术语');
+}
+
+// ==================== SMART SPLIT ====================
+function smartSplit(maxChars) {
+  if (!subtitles.length) return;
+  saveHistory();
+  const newSubs = [];
+  let idx = 1;
+  subtitles.forEach(sub => {
+    const lines = sub.text.split('\\n');
+    const chunks = [];
+    lines.forEach(line => {
+      if (line.length <= maxChars) { chunks.push(line); return; }
+      let start = 0;
+      while (start < line.length) {
+        let end = Math.min(start + maxChars, line.length);
+        if (end < line.length) {
+          const breaks = ['，','。','！','？','；','：','、',' '];
+          let best = -1;
+          for (const b of breaks) { const p = line.lastIndexOf(b, end); if (p > start) best = Math.max(best, p); }
+          if (best > start) end = best + 1;
+        }
+        chunks.push(line.slice(start, end));
+        start = end;
+      }
+    });
+    const duration = sub.end - sub.start;
+    const perChunk = duration / Math.max(1, chunks.length);
+    chunks.forEach((chunk, i) => {
+      newSubs.push({index: idx++, start: Math.round(sub.start + i*perChunk), end: Math.round(sub.start + (i+1)*perChunk), text: chunk.trim()});
+    });
+  });
+  subtitles = newSubs;
+  renderSubtitles();
+  renderTimeline();
+  toast('已智能拆分');
+}
+
+// ==================== VERIFY ====================
+const COMMON_WORDS = new Set(["the","and","for","are","but","not","you","all","can","had","her","was","one","our","out","day","get","has","him","his","how","man","new","now","old","see","two","way","who","boy","did","its","let","put","say","she","too","use","dad","mom","act","add","age","ago","aid","air","all","app","art","ask","bad","bag","bar","bat","bed","bet","bid","big","bin","bit","bus","buy","car","cat","cop","cow","cry","cup","cut","dog","dry","eat","egg","end","eye","fan","far","fat","fax","fee","few","fit","fix","fly","fun","gap","gas","gel","gem","god","got","gum","gun","gut","guy","gym","hat","hen","hey","hid","hit","hot","hug","hut","ice","ill","ink","inn","jam","jar","jaw","jet","job","jog","joy","key","kid","kit","lab","lap","law","lay","leg","lid","lie","lip","log","lot","low","mad","map","mat","may","men","mix","mud","mug","nap","net","nod","nor","not","now","nut","oak","odd","off","oil","owl","own","pad","pan","pay","pea","pen","pet","pie","pig","pin","pit","pop","pot","pro","pub","pup","rag","ram","ran","rap","rat","raw","ray","red","rib","rid","rig","rim","rip","rob","rod","row","rub","rug","run","sad","saw","sea","set","sew","shy","sin","sip","sir","sit","six","ski","sky","sly","son","sow","spa","spy","sue","sum","sun","tab","tag","tan","tap","tax","tea","ten","the","tie","tin","tip","toe","ton","too","top","tow","toy","try","tub","tug","van","vet","via","vow","wag","war","was","wax","way","web","wed","wet","who","why","wig","win","wit","won","wow","yes","yet","zip","zoo","able","acid","aged","also","area","army","away","baby","back","ball","band","bank","base","bath","bear","beat","been","beer","bell","belt","best","bike","bill","bind","bird","bite","blow","blue","boat","body","bomb","bond","bone","book","boom","born","boss","both","bowl","bulk","burn","bush","busy","call","calm","came","camp","card","care","case","cash","cast","cell","chat","chip","city","club","coal","coat","code","cold","come","cook","cool","cope","copy","core","cost","crew","crop","dark","data","date","dawn","dead","deal","dear","debt","deep","deny","desk","dial","diet","disc","disk","dive","door","dose","down","draw","drop","drug","dual","duke","dust","duty","earn","ease","east","edge","edit","else","even","ever","evil","exit","face","fact","fail","fair","fall","farm","fast","fate","fear","feed","feel","feet","fell","felt","file","fill","film","find","fine","fire","firm","fish","flat","flow","food","foot","ford","form","fort","four","free","from","fuel","full","fund","gain","game","gate","gear","gene","gift","girl","give","glad","goal","goes","gold","golf","gone","good","grew","grow","gulf","hair","half","hall","hand","hang","hard","harm","hate","have","head","hear","heat","held","hell","help","here","hero","high","hill","hire","hold","hole","holy","home","hope","host","hour","huge","hung","hunt","hurt","idea","inch","into","iron","item","jack","jazz","join","jump","jury","just","keen","keep","kept","kick","kill","kind","king","knee","knew","know","lack","lady","laid","lake","land","lane","last","late","lead","left","less","life","lift","like","line","link","list","live","load","loan","lock","long","look","lord","lose","loss","lost","love","luck","made","mail","main","make","male","many","mark","mass","mate","math","meal","mean","meat","meet","menu","mile","milk","mill","mind","mine","miss","mode","mood","moon","more","most","move","much","must","name","navy","near","neck","need","news","next","nice","nine","none","nose","note","okay","once","only","onto","open","oral","over","pace","pack","page","pain","pair","palm","park","part","pass","past","path","peak","pick","pile","pink","pipe","plan","play","plea","plot","plug","plus","poem","poet","pool","poor","port","post","pour","pray","pull","pure","push","quit","race","rail","rain","rank","rare","rate","read","real","rear","rely","rent","rest","rice","rich","ride","ring","rise","risk","road","rock","role","roll","roof","room","root","rope","rose","rule","rush","ruth","safe","said","sake","sale","salt","same","sand","save","seat","seed","seek","seem","seen","self","sell","send","sent","ship","shoe","shop","shot","show","shut","sick","side","sign","silk","site","size","skin","slip","slow","snow","soft","soil","sold","sole","some","song","soon","sort","soul","soup","span","spot","star","stay","step","stop","such","suit","sure","swim","tail","take","tale","talk","tall","tank","tape","task","team","tear","tell","tend","term","test","text","than","that","them","then","thin","this","thus","tide","till","time","tiny","told","toll","tone","took","tool","tour","town","tree","trip","true","tube","tuna","turn","twin","type","unit","upon","used","user","vary","vast","very","view","vote","wage","wait","wake","walk","wall","want","ward","warm","wash","wave","ways","weak","wear","week","well","went","were","west","what","when","whom","wide","wife","wild","will","wind","wine","wing","wire","wise","wish","with","wood","wool","word","work","yard","year","zero","zone","data","meta","info","view","mode","type","load","save","open","edit","copy","move","sort","find","undo","redo","paste","delete","select","insert","update","remove","create","search","filter","export","import","submit","cancel","accept","reject","confirm","refresh","process","connect","disconnect","download","upload","render","parse","encode","decode","encrypt","decrypt","compress","decompress","convert","format","validate","verify","check","test","debug","trace","log","warn","error","fatal","info","debug","trace","init","setup","config","start","stop","pause","resume","restart","shutdown","reboot","reset","lock","unlock","block","allow","deny","permit","grant","revoke","assign","unassign","attach","detach","link","unlink","bind","unbind","merge","split","join","leave","enter","exit","open","close","show","hide","display","visible","hidden","active","inactive","enabled","disabled","checked","unchecked","selected","deselected","focused","blurred","hovered","pressed","dragged","dropped","clicked","scrolled","resized","moved","rotated","scaled","flipped","mirrored","clipped","masked","cropped","trimmed","cut","pasted","merged","split","grouped","ungrouped","locked","unlocked","protected","unprotected","archived","unarchived","flagged","unflagged","marked","unmarked","tagged","untagged","labeled","unlabeled","categorized","uncategorized","sorted","unsorted","filtered","unfiltered","searched","found","lost","replaced","substituted","inserted","deleted","appended","prepended","overwritten","truncated","extended","shortened","lengthened","widened","narrowed","deepened","shallowed","heightened","lowered","raised","dropped","lifted","pushed","pulled","dragged","dropped","thrown","caught","hit","missed","touched","felt","sensed","perceived","noticed","observed","seen","watched","looked","viewed","glanced","stared","gazed","peeked","peeped","peered","scanned","inspected","examined","studied","analyzed","investigated","explored","discovered","found","located","placed","positioned","arranged","organized","structured","formatted","styled","designed","drawn","painted","sketched","drafted","plotted","planned","mapped","charted","graphed","diagrammed","illustrated","pictured","imaged","photographed","filmed","recorded","taped","streamed","broadcast","transmitted","sent","received","delivered","shipped","transported","carried","moved","shifted","transferred","exchanged","swapped","traded","sold","bought","purchased","acquired","obtained","gained","earned","won","lost","spent","wasted","saved","stored","kept","held","maintained","managed","controlled","operated","run","executed","performed","done","made","built","constructed","assembled","fabricated","manufactured","produced","generated","created","invented","innovated","developed","designed","engineered","architected","programmed","coded","scripted","configured","customized","tailored","adapted","adjusted","modified","altered","changed","transformed","converted","translated","interpreted","explained","described","defined","specified","detailed","itemized","listed","cataloged","indexed","referenced","cited","quoted","mentioned","noted","remarked","commented","stated","declared","announced","proclaimed","published","released","issued","distributed","shared","collaborated","cooperated","coordinated","synchronized","aligned","matched","paired","coupled","joined","linked","connected","related","associated","correlated","compared","contrasted","differentiated","distinguished","identified","recognized","known","unknown","familiar","unfamiliar","popular","unpopular","common","rare","usual","unusual","normal","abnormal","regular","irregular","standard","nonstandard","typical","atypical","general","specific","particular","special","universal","global","local","national","international","domestic","foreign","external","internal","outer","inner","upper","lower","higher","deeper","shallower","broader","narrower","wider","tighter","looser","firmer","softer","harder","easier","tougher","gentler","rougher","smoother","sharper","duller","brighter","darker","lighter","heavier","thicker","thinner","stronger","weaker","faster","slower","quicker","longer","shorter","taller","smaller","bigger","larger","tinier","huger","greater","lesser","better","worse","best","worst","good","bad","well","ill","sick","healthy","unhealthy","fit","unfit","able","unable","capable","incapable","possible","impossible","probable","improbable","likely","unlikely","certain","uncertain","sure","unsure","confident","doubtful","hopeful","hopeless","helpful","helpless","useful","useless","powerful","powerless","careful","careless","harmful","harmless","meaningful","meaningless","thankful","thoughtful","thoughtless","wonderful","beautiful","successful","unsuccessful","peaceful","graceful","grateful","faithful","truthful","youthful","delightful","powerful","skillful","masterful","wasteful","eventful","fanciful","hurtful","resentful","tasteful","distasteful","disrespectful","forgetful","fretful","fruitful","fruitless","effortless","painless","homeless","hopeless","relentless","restless","ruthless","selfless","shameless","tireless","wireless","priceless","countless","endless","boundless","limitless"].map(w=>w.toLowerCase()));
+
+function scanForUnknownTerms() {
+  const unknowns = [];
+  const knownPatterns = new Set(getActiveRules().map(r => r.pattern.toLowerCase()));
+  subtitles.forEach(sub => {
+    const matches = sub.text.match(/[a-zA-Z][a-zA-Z0-9]*/g);
+    if (!matches) return;
+    for (const match of matches) {
+      const lower = match.toLowerCase();
+      if (knownPatterns.has(lower) || COMMON_WORDS.has(lower) || match.length < 3) continue;
+      if (ignoredTerms.has(lower)) continue;
+      unknowns.push({term: match, index: sub.index, context: sub.text});
+    }
+  });
+  return unknowns;
+}
+
+function renderVerifyResults() {
+  const container = $('verifyResults');
+  const unknowns = scanForUnknownTerms();
+  $('verifyCount').textContent = '发现 ' + unknowns.length + ' 个潜在问题';
+  if (!unknowns.length) { container.innerHTML = ''; $('verifyEmpty').style.display = 'block'; return; }
+  $('verifyEmpty').style.display = 'none';
+  container.innerHTML = '';
+  unknowns.forEach(u => {
+    const el = document.createElement('div');
+    el.className = 'verify-item';
+    el.innerHTML = '<div class="term-line"><span class="term">' + escapeHtml(u.term) + '</span><span>字幕 #' + u.index + '</span></div>' +
+      '<div class="context">' + escapeHtml(u.context) + '</div>' +
+      '<div class="links">' +
+      '<a href="https://www.google.com/search?q=' + encodeURIComponent(u.term) + '" target="_blank">Google</a>' +
+      '<a href="https://cn.bing.com/search?q=' + encodeURIComponent(u.term) + '" target="_blank">Bing</a>' +
+      '<a href="https://zh.wikipedia.org/wiki/' + encodeURIComponent(u.term) + '" target="_blank">Wikipedia</a>' +
+      '<button class="add-rule-btn" data-term="' + escapeHtml(u.term) + '">添加规则</button>' +
+      '<button class="ignore-btn" data-term="' + escapeHtml(u.term) + '">忽略</button></div>';
+    container.appendChild(el);
+  });
+  container.querySelectorAll('.add-rule-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const term = btn.dataset.term;
+      $('customRulePattern').value = term;
+      $('customRuleReplacement').value = term.charAt(0).toUpperCase() + term.slice(1);
+      $('customRulePattern').focus();
+    });
+  });
+  container.querySelectorAll('.ignore-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ignoredTerms.add(btn.dataset.term.toLowerCase());
+      saveStorage();
+      renderVerifyResults();
+      renderIgnoredList();
+      toast('已忽略该术语');
+    });
+  });
+}
+
+function renderIgnoredList() {
+  const list = $('ignoredList');
+  const arr = [...ignoredTerms];
+  $('ignoredCount').textContent = '已忽略 ' + arr.length + ' 个术语';
+  if (!arr.length) { list.innerHTML = ''; return; }
+  list.innerHTML = arr.map(t => '<div class="ignored-item"><span class="term">' + escapeHtml(t) + '</span><button data-term="' + escapeHtml(t) + '">恢复</button></div>').join('');
+  list.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ignoredTerms.delete(btn.dataset.term);
+      saveStorage();
+      renderVerifyResults();
+      renderIgnoredList();
+      toast('已恢复该术语');
+    });
+  });
+}
+
+// ==================== MODALS ====================
+function openModal(overlay) { overlay.classList.add('active'); }
+function closeModal(overlay) { overlay.classList.remove('active'); }
+
+$('editModalClose').addEventListener('click', () => closeModal($('editModalOverlay')));
+$('btnCancelEdit').addEventListener('click', () => closeModal($('editModalOverlay')));
+$('verifyModalClose').addEventListener('click', () => closeModal($('verifyModalOverlay')));
+$('btnVerifyClose').addEventListener('click', () => closeModal($('verifyModalOverlay')));
+$('rulesModalClose').addEventListener('click', () => closeModal($('rulesModalOverlay')));
+$('btnRulesClose').addEventListener('click', () => closeModal($('rulesModalOverlay')));
+
+$('btnScanAll').addEventListener('click', () => { renderVerifyResults(); });
+
+function openEditModal(i) {
+  if (i < 0 || i >= subtitles.length) return;
+  selectedIndex = i;
+  const sub = subtitles[i];
+  $('editStartTime').value = msToTime(sub.start);
+  $('editEndTime').value = msToTime(sub.end);
+  $('editText').value = sub.text;
+  openModal($('editModalOverlay'));
+}
+
+$('btnSaveEdit').addEventListener('click', () => {
+  if (selectedIndex < 0) return;
+  saveHistory();
+  const sub = subtitles[selectedIndex];
+  sub.start = timeToMs($('editStartTime').value);
+  sub.end = timeToMs($('editEndTime').value);
+  sub.text = $('editText').value;
+  renderSubtitles();
+  renderTimeline();
+  renderCenterEditor();
+  renderTimelineInfo();
+  closeModal($('editModalOverlay'));
+  toast('已保存');
+});
+
+$('btnDeleteEdit').addEventListener('click', () => {
+  if (selectedIndex < 0) return;
+  saveHistory();
+  subtitles.splice(selectedIndex, 1);
+  subtitles.forEach((s,i) => s.index = i+1);
+  selectedIndex = -1;
+  renderSubtitles();
+  renderTimeline();
+  renderCenterEditor();
+  renderTimelineInfo();
+  closeModal($('editModalOverlay'));
+  toast('已删除');
+});
+
+$('btnSplitEdit').addEventListener('click', () => {
+  if (selectedIndex < 0) return;
+  saveHistory();
+  const sub = subtitles[selectedIndex];
+  const mid = Math.round((sub.start + sub.end) / 2);
+  const text = sub.text;
+  const half = Math.ceil(text.length / 2);
+  const newSub = {index: selectedIndex+2, start: mid, end: sub.end, text: text.slice(half)};
+  sub.end = mid; sub.text = text.slice(0, half);
+  subtitles.splice(selectedIndex+1, 0, newSub);
+  subtitles.forEach((s,i) => s.index = i+1);
+  renderSubtitles();
+  renderTimeline();
+  renderCenterEditor();
+  renderTimelineInfo();
+  closeModal($('editModalOverlay'));
+  toast('已拆分');
+});
+
+$('btnVerifySelected').addEventListener('click', () => {
+  if (selectedIndex < 0) return;
+  closeModal($('editModalOverlay'));
+  openVerifyModal();
+});
+
+function openVerifyModal() {
+  openModal($('verifyModalOverlay'));
+  renderVerifyResults();
+  renderIgnoredList();
+}
+
+// ==================== RULES MANAGEMENT ====================
+function openRulesModal() {
+  openModal($('rulesModalOverlay'));
+  renderRulesList();
+}
+
+function renderRulesList() {
+  const filter = $('rulesFilter').value.toLowerCase();
+  const activeTab = document.querySelector('.rules-tab.active').dataset.tab;
+  $('rulesCount').textContent = BUILTIN_RULES.length + ' 内置 + ' + customRules.length + ' 自定义';
+
+  if (activeTab === 'builtin') {
+    const list = $('builtinRulesList');
+    list.innerHTML = '';
+    BUILTIN_RULES.forEach((r,i) => {
+      if (filter && !r.pattern.toLowerCase().includes(filter) && !r.replacement.toLowerCase().includes(filter)) return;
+      const el = document.createElement('div');
+      el.className = 'rules-list-item';
+      el.innerHTML = '<input type="checkbox" ' + (disabledBuiltinIndices.has(i) ? '' : 'checked') + ' data-idx="' + i + '"> <span class="pattern">' + escapeHtml(r.pattern) + '</span> <span class="arrow">→</span> <span class="replacement">' + escapeHtml(r.replacement) + '</span>';
+      list.appendChild(el);
+    });
+    list.querySelectorAll('input').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const idx = +cb.dataset.idx;
+        if (cb.checked) disabledBuiltinIndices.delete(idx); else disabledBuiltinIndices.add(idx);
+        saveStorage();
+      });
+    });
+  } else {
+    const list = $('customRulesList');
+    list.innerHTML = '';
+    customRules.forEach((r,i) => {
+      if (filter && !r.pattern.toLowerCase().includes(filter) && !r.replacement.toLowerCase().includes(filter)) return;
+      const el = document.createElement('div');
+      el.className = 'rules-list-item';
+      el.innerHTML = '<input type="checkbox" ' + (r.enabled !== false ? 'checked' : '') + ' data-idx="' + i + '"> <span class="pattern">' + escapeHtml(r.pattern) + '</span> <span class="arrow">→</span> <span class="replacement">' + escapeHtml(r.replacement) + '</span> <button class="delete-btn" data-idx="' + i + '">&times;</button>';
+      list.appendChild(el);
+    });
+    list.querySelectorAll('input').forEach(cb => {
+      cb.addEventListener('change', () => { customRules[+cb.dataset.idx].enabled = cb.checked; saveStorage(); });
+    });
+    list.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => { customRules.splice(+btn.dataset.idx, 1); renderRulesList(); saveStorage(); });
+    });
+  }
+}
+
+document.querySelectorAll('.rules-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.rules-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.rules-panel').forEach(p => p.classList.remove('active'));
+    $(tab.dataset.tab + 'Panel').classList.add('active');
+    renderRulesList();
+  });
+});
+
+$('rulesFilter').addEventListener('input', renderRulesList);
+
+$('btnAddCustomRule').addEventListener('click', () => {
+  const p = $('newCustomPattern').value.trim(), r = $('newCustomReplacement').value.trim();
+  if (!p || !r) return;
+  customRules.push({pattern: p, replacement: r, enabled: true, builtin: false});
+  $('newCustomPattern').value = ''; $('newCustomReplacement').value = '';
+  renderRulesList(); saveStorage();
+  toast('已添加自定义规则');
+});
+
+$('btnSaveCustomRule').addEventListener('click', () => {
+  const p = $('customRulePattern').value.trim(), r = $('customRuleReplacement').value.trim();
+  if (!p || !r) return;
+  customRules.push({pattern: p, replacement: r, enabled: true, builtin: false});
+  $('customRulePattern').value = ''; $('customRuleReplacement').value = '';
+  saveStorage();
+  renderVerifyResults();
+  toast('已添加规则');
+});
+
+$('btnExportRules').addEventListener('click', () => {
+  const data = { builtinDisabled: [...disabledBuiltinIndices], custom: customRules, ignored: [...ignoredTerms] };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'srt-rules.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('已导出规则');
+});
+
+$('importRulesInput').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.builtinDisabled) disabledBuiltinIndices = new Set(data.builtinDisabled);
+      if (data.custom) customRules = data.custom;
+      if (data.ignored) ignoredTerms = new Set(data.ignored);
+      saveStorage(); renderRulesList(); renderVerifyResults(); renderIgnoredList();
+      toast('已导入规则');
+    } catch { toast('导入失败'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+$('btnResetRules').addEventListener('click', () => {
+  disabledBuiltinIndices.clear(); customRules = []; ignoredTerms.clear();
+  saveStorage(); renderRulesList(); renderVerifyResults(); renderIgnoredList();
+  toast('已重置规则');
+});
+
+// ==================== STORAGE ====================
+function loadStorage() {
+  try {
+    const c = localStorage.getItem('srt_custom_rules');
+    if (c) customRules = JSON.parse(c);
+    const d = localStorage.getItem('srt_disabled_builtin');
+    if (d) disabledBuiltinIndices = new Set(JSON.parse(d));
+    const i = localStorage.getItem('srt_ignored_terms');
+    if (i) ignoredTerms = new Set(JSON.parse(i));
+  } catch(e) {}
+}
+function saveStorage() {
+  localStorage.setItem('srt_custom_rules', JSON.stringify(customRules));
+  localStorage.setItem('srt_disabled_builtin', JSON.stringify([...disabledBuiltinIndices]));
+  localStorage.setItem('srt_ignored_terms', JSON.stringify([...ignoredTerms]));
+}
+
+// ==================== CONTEXT MENU ====================
+const contextMenu = $('contextMenu');
+let contextMenuIndex = -1;
+function showContextMenu(e, i) {
+  contextMenuIndex = i;
+  contextMenu.style.display = 'block';
+  contextMenu.style.left = Math.min(e.clientX, window.innerWidth - 150) + 'px';
+  contextMenu.style.top = Math.min(e.clientY, window.innerHeight - 120) + 'px';
+}
+document.addEventListener('click', () => { contextMenu.style.display = 'none'; });
+$('ctxEdit').addEventListener('click', () => { if (contextMenuIndex>=0) openEditModal(contextMenuIndex); });
+$('ctxVerify').addEventListener('click', () => { if (contextMenuIndex>=0) { selectSubtitle(contextMenuIndex); openVerifyModal(); } });
+$('ctxSplit').addEventListener('click', () => { if (contextMenuIndex>=0) { selectedIndex = contextMenuIndex; saveHistory(); const sub = subtitles[contextMenuIndex]; const mid = Math.round((sub.start+sub.end)/2); const half = Math.ceil(sub.text.length/2); const newSub = {index: contextMenuIndex+2, start: mid, end: sub.end, text: sub.text.slice(half)}; sub.end = mid; sub.text = sub.text.slice(0, half); subtitles.splice(contextMenuIndex+1, 0, newSub); subtitles.forEach((s,i) => s.index = i+1); renderSubtitles(); renderTimeline(); renderCenterEditor(); renderTimelineInfo(); toast('已拆分'); } });
+$('ctxDelete').addEventListener('click', () => { if (contextMenuIndex>=0) { selectedIndex = contextMenuIndex; saveHistory(); subtitles.splice(contextMenuIndex, 1); subtitles.forEach((s,i) => s.index = i+1); selectedIndex = -1; renderSubtitles(); renderTimeline(); renderCenterEditor(); renderTimelineInfo(); toast('已删除'); } });
+
+// ==================== AUDIO ====================
+$('btnImportAudio').addEventListener('click', () => $('audioInput').click());
+$('audioInput').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const arrayBuffer = ev.target.result;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.decodeAudioData(arrayBuffer, function(buffer) {
+      audioBuffer = buffer; duration = buffer.duration;
+      extractWaveform(buffer);
+      timelineContainer.classList.remove('empty');
+      renderTimeline();
+      toast('音频已加载: ' + file.name);
+    }, function() { toast('音频解码失败'); });
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+});
+
+$('btnPlay').addEventListener('click', () => {
+  if (!audioBuffer || !audioCtx) return;
+  if (isPlaying) { audioSource?.stop(); isPlaying = false; renderTimeline(); return; }
+  audioSource = audioCtx.createBufferSource();
+  audioSource.buffer = audioBuffer;
+  audioSource.connect(audioCtx.destination);
+  audioSource.start(0, playOffset / 1000);
+  playStartTime = Date.now(); isPlaying = true;
+  renderTimeline();
+  audioSource.onended = () => { isPlaying = false; playOffset = 0; renderTimeline(); };
+});
+
+$('btnStop').addEventListener('click', () => {
+  if (audioSource) { try { audioSource.stop(); } catch(e) {} }
+  isPlaying = false; playOffset = 0; renderTimeline();
+});
+
+// ==================== FILE IO ====================
+$('btnImportSRT').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    subtitles = parseSRT(ev.target.result);
+    saveHistory(); renderSubtitles(); renderTimeline(); renderCenterEditor(); renderTimelineInfo();
+    toast('已加载: ' + file.name);
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+$('btnExport').addEventListener('click', () => {
+  if (!subtitles.length) { toast('没有字幕可导出'); return; }
+  const blob = new Blob([exportSRT()], {type: 'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'subtitles.srt'; a.click();
+  URL.revokeObjectURL(url);
+  toast('已导出 SRT');
+});
+
+// ==================== TOOLBAR BUTTONS ====================
+$('btnAutoSpace').addEventListener('click', applyAutoSpace);
+$('btnTermFix').addEventListener('click', applyTermFix);
+$('btnSmartSplit').addEventListener('click', () => smartSplit(+$('maxChars').value));
+$('btnVerify').addEventListener('click', openVerifyModal);
+$('btnRules').addEventListener('click', openRulesModal);
+$('btnUndo').addEventListener('click', undo);
+$('btnRedo').addEventListener('click', redo);
+$('btnScanBottom').addEventListener('click', openVerifyModal);
+$('btnRulesBottom').addEventListener('click', openRulesModal);
+$('btnTermFixBottom').addEventListener('click', applyTermFix);
+$('btnAutoSpaceBottom').addEventListener('click', applyAutoSpace);
+$('btnExecSplit').addEventListener('click', () => smartSplit(+$('maxCharsBottom').value));
+
+// ==================== DRAG & DROP IMPORT ====================
+const dragOverlay = $('dragOverlay');
+['dragenter','dragover'].forEach(ev => {
+  document.addEventListener(ev, e => { e.preventDefault(); dragOverlay.classList.add('show'); });
+});
+['dragleave','drop'].forEach(ev => {
+  document.addEventListener(ev, e => { if (e.target === dragOverlay) dragOverlay.classList.remove('show'); });
+});
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  dragOverlay.classList.remove('show');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  if (file.name.endsWith('.json')) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (data.builtinDisabled) disabledBuiltinIndices = new Set(data.builtinDisabled);
+        if (data.custom) customRules = data.custom;
+        if (data.ignored) ignoredTerms = new Set(data.ignored);
+        saveStorage(); renderRulesList(); renderVerifyResults(); renderIgnoredList();
+        toast('已导入规则');
+      } catch { toast('JSON 解析失败'); }
+    };
+    reader.readAsText(file);
+  } else if (file.name.endsWith('.srt')) {
+    const reader = new FileReader();
+    reader.onload = ev => { subtitles = parseSRT(ev.target.result); saveHistory(); renderSubtitles(); renderTimeline(); renderCenterEditor(); renderTimelineInfo(); toast('已加载 SRT'); };
+    reader.readAsText(file);
+  }
+});
+
+// ==================== CENTER EDITOR EVENTS ====================
+$('btnEditorSave').addEventListener('click', saveCenterEditor);
+$('btnEditorDelete').addEventListener('click', () => {
+  if (selectedIndex < 0) return;
+  saveHistory();
+  subtitles.splice(selectedIndex, 1);
+  subtitles.forEach((s,i) => s.index = i+1);
+  selectedIndex = -1;
+  renderSubtitles();
+  renderTimeline();
+  renderCenterEditor();
+  renderTimelineInfo();
+  toast('已删除');
+});
+$('btnEditorSplit').addEventListener('click', () => {
+  if (selectedIndex < 0) return;
+  saveHistory();
+  const sub = subtitles[selectedIndex];
+  const mid = Math.round((sub.start + sub.end) / 2);
+  const half = Math.ceil(sub.text.length / 2);
+  const newSub = {index: selectedIndex+2, start: mid, end: sub.end, text: sub.text.slice(half)};
+  sub.end = mid; sub.text = sub.text.slice(0, half);
+  subtitles.splice(selectedIndex+1, 0, newSub);
+  subtitles.forEach((s,i) => s.index = i+1);
+  renderSubtitles();
+  renderTimeline();
+  renderCenterEditor();
+  renderTimelineInfo();
+  toast('已拆分');
+});
+$('btnEditorVerify').addEventListener('click', () => { openVerifyModal(); });
+
+// 时间轴交互
+var isDragging = false, dragStartX = 0, dragStartPan = 0;
+
+waveformCanvas.addEventListener('click', function(e) {
+  var rect = waveformCanvas.getBoundingClientRect();
+  var x = e.clientX - rect.left;
+  var maxEnd = Math.max.apply(null, subtitles.map(function(s){ return s.end; }).concat(duration*1000||0));
+  if (!maxEnd) return;
+  var contentWidth = rect.width * zoom;
+  var ms = ((x + panOffset) / contentWidth) * maxEnd;
+  playOffset = ms;
+  if (isPlaying) {
+    playStartTime = Date.now();
+    if (audioSource) { try { audioSource.stop(); } catch(e) {} }
+    audioSource = audioCtx.createBufferSource();
+    audioSource.buffer = audioBuffer;
+    audioSource.connect(audioCtx.destination);
+    audioSource.start(0, ms/1000);
+  }
+  renderTimeline();
+});
+
+waveformCanvas.addEventListener('wheel', function(e) {
+  e.preventDefault();
+  var rect = waveformCanvas.getBoundingClientRect();
+  var x = e.clientX - rect.left;
+  var zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+  var oldZoom = zoom;
+  zoom = Math.max(0.1, Math.min(10, zoom * zoomFactor));
+  panOffset = x * (zoom - oldZoom) + panOffset;
+  panOffset = Math.max(0, panOffset);
+  renderTimeline();
+}, { passive: false });
+
+waveformCanvas.addEventListener('mousedown', function(e) {
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartPan = panOffset;
+  waveformCanvas.style.cursor = 'grabbing';
+});
+
+document.addEventListener('mousemove', function(e) {
+  if (!isDragging) return;
+  var dx = e.clientX - dragStartX;
+  panOffset = Math.max(0, dragStartPan - dx);
+  renderTimeline();
+});
+
+document.addEventListener('mouseup', function() {
+  isDragging = false;
+  waveformCanvas.style.cursor = 'default';
+});
+function extractWaveform(buffer) {
+  var channelData = buffer.getChannelData(0);
+  var targetPoints = 2000;
+  var samplesPerPoint = Math.floor(channelData.length / targetPoints);
+  var data = [];
+  for (var i = 0; i < targetPoints; i++) {
+    var max = 0;
+    var start = i * samplesPerPoint;
+    var end = Math.min(start + samplesPerPoint, channelData.length);
+    for (var j = start; j < end; j++) {
+      var v = Math.abs(channelData[j]);
+      if (v > max) max = v;
+    }
+    data.push(max);
+  }
+  waveformData = data;
+}
+
+$('btnTimelinePlay').addEventListener('click', () => { $('btnPlay').click(); });
+$('btnTimelineStop').addEventListener('click', () => { $('btnStop').click(); });
+
+// Update timeline current time display
+setInterval(() => {
+  if (isPlaying && audioBuffer) {
+    const elapsed = (Date.now() - playStartTime) + playOffset;
+    timelineCurrent.textContent = msToTime(elapsed);
+  }
+}, 200);
+
+// ==================== KEYBOARD ====================
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'o') { e.preventDefault(); $('fileInput').click(); }
+    if (e.key === 's') { e.preventDefault(); $('btnExport').click(); }
+    if (e.key === 'z') { e.preventDefault(); undo(); }
+    if (e.key === 'y') { e.preventDefault(); redo(); }
+  }
+  if (e.key === ' ') {
+    const tag = document.activeElement?.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') { e.preventDefault(); $('btnPlay').click(); }
+  }
+  if (e.key === 'Delete') {
+    if (selectedIndex >= 0 && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      saveHistory(); subtitles.splice(selectedIndex, 1); subtitles.forEach((s,i) => s.index = i+1); selectedIndex = -1; renderSubtitles(); renderTimeline(); renderCenterEditor(); renderTimelineInfo(); toast('已删除');
+    }
+  }
+});
+
+// ==================== INIT ====================
+loadStorage();
+renderSubtitles();
+renderTimeline();
+renderCenterEditor();
+renderTimelineInfo();
+
+})();
+</script>
+</body>
+</html>
